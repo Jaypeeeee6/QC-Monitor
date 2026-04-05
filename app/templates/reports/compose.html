@@ -1,0 +1,337 @@
+{% extends 'base.html' %}
+{% block title %}Compose Daily Report — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-envelope-plus me-2" style="color:var(--gold);"></i>Daily Report</h1>
+        <p class="subtitle">Send your daily report to the QC Department</p>
+    </div>
+    <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<div class="qc-card" style="max-width:820px;margin:0 auto;">
+
+    <!-- Window chrome -->
+    <div style="background:var(--dark-bg);padding:0.75rem 1.25rem;
+                border-bottom:1px solid var(--gold-dark);border-radius:12px 12px 0 0;
+                display:flex;align-items:center;gap:0.6rem;">
+        <div style="width:12px;height:12px;border-radius:50%;background:#ef4444;"></div>
+        <div style="width:12px;height:12px;border-radius:50%;background:#f59e0b;"></div>
+        <div style="width:12px;height:12px;border-radius:50%;background:#22c55e;"></div>
+        <span style="margin-left:0.5rem;font-size:0.78rem;color:rgba(255,255,255,0.4);font-weight:500;">
+            New Daily Report
+        </span>
+    </div>
+
+    <form method="POST" action="{{ url_for('reports.compose') }}"
+          enctype="multipart/form-data" id="composeForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Email header fields -->
+        <div style="border-bottom:1px solid var(--border-color);">
+
+            <div class="email-field-row">
+                <span class="email-field-label">From</span>
+                <div class="email-field-value">
+                    <i class="bi bi-person-circle me-1" style="color:var(--gold);"></i>
+                    {{ current_user.full_name }}
+                    {% if current_user.branch_name %}
+                        <span style="color:var(--text-light);font-size:0.82rem;"> — {{ current_user.branch_name }}</span>
+                    {% endif %}
+                    <span style="color:var(--text-muted);font-size:0.78rem;margin-left:4px;">&lt;{{ current_user.email }}&gt;</span>
+                </div>
+            </div>
+
+            <div class="email-field-row" style="align-items:flex-start;">
+                <span class="email-field-label" style="padding-top:2px;">To</span>
+                <div class="email-field-value" style="flex-wrap:wrap;gap:0.4rem;display:flex;align-items:center;">
+                    {% if qc_admins %}
+                        {% for person in qc_admins %}
+                        <span class="to-recipient-chip">
+                            <i class="bi bi-person-fill me-1"></i>
+                            {{ person.full_name }}
+                            <span style="color:var(--text-muted);font-size:0.72rem;">&lt;{{ person.email }}&gt;</span>
+                        </span>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color:var(--text-muted);font-size:0.82rem;font-style:italic;">
+                            <i class="bi bi-exclamation-circle me-1"></i>No QC Admins registered yet
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="email-field-row">
+                <span class="email-field-label">Date</span>
+                <input type="date" name="report_date" value="{{ report_date }}"
+                       max="{{ today }}" class="email-date-input">
+            </div>
+
+            <div class="email-field-row" style="border-bottom:none;">
+                <span class="email-field-label">Subject</span>
+                <input type="text" name="subject" value="{{ subject }}"
+                       placeholder="e.g. Daily Operations Report – April 1, 2026"
+                       maxlength="200" class="email-subject-input" required autocomplete="off">
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div style="border-bottom:1px solid var(--border-color);">
+            <textarea name="body" id="reportBody" class="email-body-input" required rows="14"
+                      placeholder="Write your daily report here…&#10;&#10;You can include:&#10;• Summary of today's operations&#10;• Issues or concerns encountered&#10;• Actions taken or required&#10;• Any other relevant observations">{{ body }}</textarea>
+        </div>
+
+        <!-- Photo upload section -->
+        <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-color);">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-images" style="color:var(--gold);"></i>
+                <span style="font-size:0.82rem;font-weight:600;color:var(--text-mid);">
+                    Attach Photos <span style="font-weight:400;color:var(--text-muted);">(up to 5 · jpg, png, gif, webp)</span>
+                </span>
+            </div>
+
+            <!-- Drop zone -->
+            <div id="dropZone" class="photo-drop-zone">
+                <i class="bi bi-cloud-upload" style="font-size:2rem;color:var(--text-muted);"></i>
+                <p style="margin:0.4rem 0 0;font-size:0.82rem;color:var(--text-muted);">
+                    Drag & drop photos here or
+                    <label for="photoInput" style="color:var(--gold-deeper);cursor:pointer;font-weight:600;text-decoration:underline;">
+                        browse
+                    </label>
+                </p>
+                <input type="file" id="photoInput" name="photos" multiple
+                       accept=".jpg,.jpeg,.png,.gif,.webp" style="display:none;">
+            </div>
+
+            <!-- Preview grid -->
+            <div id="photoPreview" class="photo-preview-grid" style="display:none;"></div>
+        </div>
+
+        <!-- Toolbar -->
+        <div style="padding:1rem 1.25rem;display:flex;align-items:center;
+                    justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
+            <span style="font-size:0.75rem;color:var(--text-muted);">
+                <i class="bi bi-shield-check me-1"></i>Visible to QC Admins and IT Admins.
+            </span>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm px-3">
+                    <i class="bi bi-x me-1"></i>Discard
+                </a>
+                <button type="submit" class="btn-qc-primary px-4">
+                    <i class="bi bi-send me-2"></i>Send Report
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.email-field-row {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    gap: 1rem;
+}
+.email-field-label {
+    min-width: 64px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+}
+.email-field-value {
+    flex: 1;
+    font-size: 0.875rem;
+    color: var(--text-mid);
+    font-weight: 500;
+}
+.email-subject-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    width: 100%;
+    padding: 0;
+}
+.email-subject-input::placeholder { color: var(--text-muted); font-weight: 400; }
+.email-date-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--text-mid);
+    cursor: pointer;
+    padding: 0;
+}
+.email-body-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    resize: vertical;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--text-dark);
+    padding: 1.25rem;
+    font-family: inherit;
+    min-height: 260px;
+}
+.email-body-input::placeholder { color: var(--text-muted); }
+
+.to-recipient-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--gold-pale);
+    color: var(--gold-deeper);
+    border: 1px solid var(--gold-dark);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Drop zone */
+.photo-drop-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: pointer;
+}
+.photo-drop-zone.drag-over {
+    border-color: var(--gold);
+    background: var(--gold-light);
+}
+
+/* Preview grid */
+.photo-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+}
+.photo-preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.photo-remove-btn:hover { background: #ef4444; }
+</style>
+
+<script>
+(function () {
+    const input = document.getElementById('photoInput');
+    const dropZone = document.getElementById('dropZone');
+    const previewGrid = document.getElementById('photoPreview');
+    const MAX_PHOTOS = 5;
+    let selectedFiles = [];
+
+    // Click drop zone to open file picker
+    dropZone.addEventListener('click', () => input.click());
+
+    // Drag over
+    dropZone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        addFiles(e.dataTransfer.files);
+    });
+
+    input.addEventListener('change', () => addFiles(input.files));
+
+    function addFiles(fileList) {
+        for (const file of fileList) {
+            if (selectedFiles.length >= MAX_PHOTOS) {
+                alert(`You can attach up to ${MAX_PHOTOS} photos.`);
+                break;
+            }
+            if (!file.type.startsWith('image/')) continue;
+            selectedFiles.push(file);
+        }
+        renderPreviews();
+        syncInput();
+    }
+
+    function renderPreviews() {
+        previewGrid.innerHTML = '';
+        if (selectedFiles.length === 0) {
+            previewGrid.style.display = 'none';
+            return;
+        }
+        previewGrid.style.display = 'grid';
+        selectedFiles.forEach((file, idx) => {
+            const item = document.createElement('div');
+            item.className = 'photo-preview-item';
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.alt = file.name;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'photo-remove-btn';
+            btn.innerHTML = '<i class="bi bi-x"></i>';
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                selectedFiles.splice(idx, 1);
+                renderPreviews();
+                syncInput();
+            });
+
+            item.appendChild(img);
+            item.appendChild(btn);
+            previewGrid.appendChild(item);
+        });
+    }
+
+    function syncInput() {
+        // Rebuild a DataTransfer so the file input carries our custom selection
+        const dt = new DataTransfer();
+        selectedFiles.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    }
+})();
+</script>
+{% endblock %}

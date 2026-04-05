@@ -1,0 +1,55 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ===== Virtual environments =====
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ===== Flask / App =====
+instance/
+.env
+*.env
+config.local.py
+
+# ===== Database =====
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+# Keep the folder itself
+!database/.gitkeep
+
+# ===== Uploads (user-generated files) =====
+app/static/uploads/reports/*
+app/static/uploads/comments/*
+# Keep the folders themselves
+!app/static/uploads/reports/.gitkeep
+!app/static/uploads/comments/.gitkeep
+
+# ===== IDEs & editors =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== OS =====
+desktop.ini
+ehthumbs.db

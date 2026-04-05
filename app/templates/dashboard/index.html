@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-speedometer2 me-2" style="color:#4e73df;"></i>QC Dashboard</h1>
+        <p class="subtitle">Branch KPI overview</p>
+    </div>
+    <form method="GET" action="{{ url_for('dashboard.index') }}"
+          style="display:flex;align-items:center;gap:0.5rem;">
+        <label style="font-size:0.8rem;color:#7a869a;font-weight:600;">Date:</label>
+        <input type="date" name="date" value="{{ filter_date }}"
+               style="border:1.5px solid #e2e8f0;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.875rem;outline:none;">
+        <button type="submit" class="btn-qc-primary">
+            <i class="bi bi-search"></i>
+        </button>
+        {% if filter_date != today %}
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-sm">Today</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Top Summary Stats -->
+<div class="row g-3 mb-4">
+    {% set total_branches = kpi_data | length %}
+    {% set fs_submitted = kpi_data | selectattr('fs_submitted') | list | length %}
+    {% set cl_submitted = kpi_data | selectattr('cl_submitted') | list | length %}
+    {% set scored_today = kpi_data | selectattr('fs_score') | list | length %}
+    {% set avg_score_list = kpi_data | selectattr('fs_score') | map(attribute='fs_score') | list %}
+    {% set avg_score = (avg_score_list | sum / avg_score_list | length) | round(1) if avg_score_list else None %}
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card blue">
+            <div class="stat-label">Branches</div>
+            <div class="stat-value">{{ total_branches }}</div>
+            <div class="stat-sub">Total monitored</div>
+            <i class="bi bi-building stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card green">
+            <div class="stat-label">Food Safety Submitted</div>
+            <div class="stat-value">{{ fs_submitted }}/{{ total_branches }}</div>
+            <div class="stat-sub">For {{ filter_date }}</div>
+            <i class="bi bi-egg-fried stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card teal">
+            <div class="stat-label">Cleaning Submitted</div>
+            <div class="stat-value">{{ cl_submitted }}/{{ total_branches }}</div>
+            <div class="stat-sub">For {{ filter_date }}</div>
+            <i class="bi bi-bucket stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card yellow">
+            <div class="stat-label">Avg Food Safety Score</div>
+            <div class="stat-value">{{ avg_score if avg_score else '—' }}</div>
+            <div class="stat-sub">{{ scored_today }} scored today</div>
+            <i class="bi bi-star stat-icon"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Branch KPI Cards -->
+<div class="row g-4">
+    {% for kpi in kpi_data %}
+    <div class="col-lg-4 col-md-6">
+        <div class="branch-kpi-card">
+            <div class="kpi-header" style="border-bottom:2px solid var(--gold-dark);">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6><i class="bi bi-building me-2"></i>{{ kpi.branch_name }}</h6>
+                        <p style="margin:0.15rem 0 0;font-size:0.75rem;color:rgba(255,255,255,0.5);">
+                            <i class="bi bi-fire me-1"></i>{{ kpi.streak }}-day streak
+                        </p>
+                    </div>
+                    <!-- Overall Score Display -->
+                    {% if kpi.fs_score is not none %}
+                    <div class="score-circle {{ 'excellent' if kpi.fs_score >= 90 else 'good' if kpi.fs_score >= 75 else 'warning' if kpi.fs_score >= 60 else 'danger' }}"
+                         style="width:46px;height:46px;font-size:1rem;border-width:2px;">
+                        {{ kpi.fs_score }}
+                    </div>
+                    {% else %}
+                    <div class="score-circle pending"
+                         style="width:46px;height:46px;font-size:0.6rem;border-width:2px;">
+                        N/A
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="kpi-body">
+
+                <!-- Food Safety -->
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">
+                        <i class="bi bi-egg-fried me-1" style="color:#1cc88a;"></i>Food Safety
+                    </span>
+                    {% if kpi.fs_submitted %}
+                        <span class="status-pill submitted" style="font-size:0.7rem;">
+                            <i class="bi bi-check-circle-fill"></i> Submitted
+                        </span>
+                    {% else %}
+                        <span class="status-pill not-submitted" style="font-size:0.7rem;">
+                            <i class="bi bi-x-circle"></i> Not Submitted
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if kpi.fs_compliance is not none %}
+                <div style="padding:0.3rem 0 0.5rem;">
+                    <div class="d-flex justify-content-between" style="font-size:0.75rem;color:#7a869a;margin-bottom:0.25rem;">
+                        <span>Compliance</span>
+                        <strong style="color:{{ '#1cc88a' if kpi.fs_compliance >= 80 else '#f6c23e' if kpi.fs_compliance >= 60 else '#e74a3b' }};">
+                            {{ kpi.fs_compliance }}%
+                        </strong>
+                    </div>
+                    <div class="compliance-bar">
+                        <div class="bar-fill {{ 'high' if kpi.fs_compliance >= 80 else 'medium' if kpi.fs_compliance >= 60 else 'low' }}"
+                             style="width:{{ kpi.fs_compliance }}%;"></div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Cleaning -->
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">
+                        <i class="bi bi-bucket me-1" style="color:#4e73df;"></i>Cleaning
+                    </span>
+                    {% if kpi.cl_submitted %}
+                        <span class="status-pill submitted" style="font-size:0.7rem;">
+                            <i class="bi bi-check-circle-fill"></i> Submitted
+                        </span>
+                    {% else %}
+                        <span class="status-pill not-submitted" style="font-size:0.7rem;">
+                            <i class="bi bi-x-circle"></i> Not Submitted
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if kpi.cl_compliance is not none %}
+                <div style="padding:0.3rem 0 0.5rem;">
+                    <div class="d-flex justify-content-between" style="font-size:0.75rem;color:#7a869a;margin-bottom:0.25rem;">
+                        <span>Compliance</span>
+                        <strong style="color:{{ '#1cc88a' if kpi.cl_compliance >= 80 else '#f6c23e' if kpi.cl_compliance >= 60 else '#e74a3b' }};">
+                            {{ kpi.cl_compliance }}%
+                        </strong>
+                    </div>
+                    <div class="compliance-bar">
+                        <div class="bar-fill {{ 'high' if kpi.cl_compliance >= 80 else 'medium' if kpi.cl_compliance >= 60 else 'low' }}"
+                             style="width:{{ kpi.cl_compliance }}%;"></div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- QC Score -->
+                {% if kpi.latest_score is not none %}
+                <div class="kpi-metric" style="border-top:1px solid #f0f2f5;padding-top:0.5rem;margin-top:0.25rem;">
+                    <span class="kpi-metric-label">
+                        <i class="bi bi-star me-1" style="color:#f6c23e;"></i>Latest Score
+                    </span>
+                    <span style="font-weight:700;color:{{ '#1cc88a' if kpi.latest_score >= 90 else '#4e73df' if kpi.latest_score >= 75 else '#f6c23e' if kpi.latest_score >= 60 else '#e74a3b' }};">
+                        {{ kpi.latest_score }}/100
+                        <span style="font-size:0.72rem;color:#7a869a;font-weight:400;">
+                            ({{ kpi.latest_score_date }})
+                        </span>
+                    </span>
+                </div>
+                {% endif %}
+
+                <!-- View Links -->
+                <div class="d-flex gap-2 mt-3">
+                    {% if kpi.fs_submission_id %}
+                    <a href="{{ url_for('checklist.view', submission_id=kpi.fs_submission_id) }}"
+                       class="btn btn-sm btn-outline-success flex-fill text-center" style="font-size:0.78rem;">
+                        <i class="bi bi-egg-fried me-1"></i>Food Safety
+                    </a>
+                    {% endif %}
+                    {% if kpi.cl_submission_id %}
+                    <a href="{{ url_for('checklist.view', submission_id=kpi.cl_submission_id) }}"
+                       class="btn btn-sm btn-outline-primary flex-fill text-center" style="font-size:0.78rem;">
+                        <i class="bi bi-bucket me-1"></i>Cleaning
+                    </a>
+                    {% endif %}
+                    {% if not kpi.fs_submission_id and not kpi.cl_submission_id %}
+                    <span style="font-size:0.8rem;color:#adb5bd;padding:0.35rem 0;">No submissions today</span>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not kpi_data %}
+<div class="qc-card mt-4">
+    <div class="empty-state">
+        <i class="bi bi-building-x"></i>
+        <p>No branches found. Set up branches in the database.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Edit Account — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-pencil-square me-2" style="color:#4e73df;"></i>Edit Account</h1>
+        <p class="subtitle">{{ user.full_name }} — {{ user.role | replace('_', ' ') | title }}</p>
+    </div>
+    <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Users
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+
+        <!-- Account Info -->
+        <div class="qc-card mb-4">
+            <div class="card-header-bar">
+                <h5><i class="bi bi-person-badge me-2"></i>Account Information</h5>
+                <span class="status-pill {{ 'submitted' if user.is_active else 'not-submitted' }}" style="font-size:0.72rem;">
+                    {{ 'Active' if user.is_active else 'Inactive' }}
+                </span>
+            </div>
+            <div class="card-body-pad">
+                <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="qc-input-group">
+                                <label>Full Name</label>
+                                <input type="text" name="full_name"
+                                       value="{{ request.form.get('full_name', user.full_name) }}" required>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="qc-input-group">
+                                <label>Email Address <span style="color:#1cc88a;font-size:0.75rem;font-weight:400;">(used to log in)</span></label>
+                                <input type="email" name="email"
+                                       value="{{ request.form.get('email', user.email) }}" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="qc-input-group">
+                                <label>Role</label>
+                                <select name="role" id="roleSelect" required>
+                                    <option value="branch_manager" {{ 'selected' if (request.form.get('role') or user.role) == 'branch_manager' }}>Branch Manager</option>
+                                    <option value="qc_admin"       {{ 'selected' if (request.form.get('role') or user.role) == 'qc_admin' }}>QC Admin</option>
+                                    <option value="management"     {{ 'selected' if (request.form.get('role') or user.role) == 'management' }}>Management (View-only)</option>
+                                    <option value="it_admin"       {{ 'selected' if (request.form.get('role') or user.role) == 'it_admin' }}>IT Admin</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" id="branchGroup"
+                             style="{{ '' if (request.form.get('role') or user.role) == 'branch_manager' else 'display:none;' }}">
+                            <div class="qc-input-group">
+                                <label>Branch</label>
+                                <select name="branch_id" id="branchSelect">
+                                    <option value="">— Select Branch —</option>
+                                    {% for b in branches %}
+                                    <option value="{{ b.id }}"
+                                        {{ 'selected' if (request.form.get('branch_id') or (user.branch_id|string)) == b.id|string }}>
+                                        {{ b.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active"
+                                       id="isActive" {{ 'checked' if user.is_active }}>
+                                <label class="form-check-label" for="isActive"
+                                       style="font-size:0.875rem;color:#344054;">
+                                    Account Active
+                                    <span style="font-size:0.78rem;color:#7a869a;">
+                                        (uncheck to deactivate login access)
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="border-color:#e8ecf2;margin:1.25rem 0;">
+
+                    <!-- Password Reset Section -->
+                    <div style="background:#f8fafc;border:1px solid #e8ecf2;border-radius:10px;padding:1rem;">
+                        <p style="font-size:0.82rem;font-weight:700;color:#344054;margin-bottom:0.75rem;">
+                            <i class="bi bi-lock me-1"></i>Reset Password
+                            <span style="font-weight:400;color:#7a869a;">(leave blank to keep current)</span>
+                        </p>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <input type="password" name="new_password"
+                                       placeholder="New password (min 6 chars)"
+                                       style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;
+                                              padding:0.55rem 0.8rem;font-size:0.875rem;outline:none;">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="password" name="confirm_new_password"
+                                       placeholder="Confirm new password"
+                                       style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;
+                                              padding:0.55rem 0.8rem;font-size:0.875rem;outline:none;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn-qc-primary px-4">
+                            <i class="bi bi-check2 me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        {% if user.id != current_user.id %}
+        <div class="qc-card" style="border-color:#fecaca;">
+            <div class="card-header-bar" style="background:#fff5f4;">
+                <h5 style="color:#dc2626;"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h5>
+            </div>
+            <div class="card-body-pad">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p style="margin:0;font-weight:600;font-size:0.875rem;color:#1a2744;">
+                            Permanently delete this account
+                        </p>
+                        <p style="margin:0;font-size:0.8rem;color:#7a869a;">
+                            This action cannot be undone.
+                        </p>
+                    </div>
+                    <form method="POST"
+                          action="{{ url_for('admin.delete_user', user_id=user.id) }}"
+                          onsubmit="return confirm('Permanently delete {{ user.full_name }}? This cannot be undone.')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash me-1"></i>Delete Account
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const roleSelect = document.getElementById('roleSelect');
+    const branchGroup = document.getElementById('branchGroup');
+    const branchSelect = document.getElementById('branchSelect');
+
+    roleSelect.addEventListener('change', function () {
+        if (this.value === 'branch_manager') {
+            branchGroup.style.display = '';
+            branchSelect.required = true;
+        } else {
+            branchGroup.style.display = 'none';
+            branchSelect.required = false;
+            branchSelect.value = '';
+        }
+    });
+</script>
+{% endblock %}

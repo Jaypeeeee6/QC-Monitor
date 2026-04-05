@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+{% block title %}Daily Reports Inbox — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>
+            <i class="bi bi-envelope me-2" style="color:var(--gold);"></i>Daily Reports
+            {% if unread_count > 0 %}
+                <span style="font-size:0.75rem;background:var(--gold);color:#fff;border-radius:20px;
+                             padding:2px 10px;vertical-align:middle;font-weight:700;margin-left:6px;">
+                    {{ unread_count }} new
+                </span>
+            {% endif %}
+        </h1>
+        <p class="subtitle">Daily reports submitted by Branch Managers</p>
+    </div>
+</div>
+
+<!-- ===== Filter Bar ===== -->
+<form method="GET" action="{{ url_for('reports.inbox') }}" id="filterForm">
+    <div class="filter-bar">
+
+        <!-- Branch dropdown -->
+        <div class="filter-group">
+            <label class="filter-label"><i class="bi bi-building me-1"></i>Branch</label>
+            <select name="branch_id" class="filter-select" onchange="this.form.submit()">
+                <option value="">All Branches</option>
+                {% for branch in branches %}
+                <option value="{{ branch.id }}" {{ 'selected' if branch_filter == branch.id|string }}>
+                    {{ branch.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Search -->
+        <div class="filter-group" style="flex:1;min-width:180px;">
+            <label class="filter-label"><i class="bi bi-search me-1"></i>Search</label>
+            <div style="position:relative;">
+                <input type="text" name="q" value="{{ search }}"
+                       placeholder="Subject, sender, or keywords…"
+                       class="filter-input" autocomplete="off">
+                {% if search %}
+                <button type="button" class="filter-clear-btn"
+                        onclick="document.querySelector('[name=q]').value='';this.form.submit();"
+                        title="Clear search">
+                    <i class="bi bi-x"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="filter-actions">
+            <button type="submit" class="btn-qc-primary px-3" style="height:38px;font-size:0.82rem;">
+                <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            {% if branch_filter or search %}
+            <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm px-3"
+               style="height:38px;display:flex;align-items:center;font-size:0.82rem;">
+                <i class="bi bi-x-circle me-1"></i>Clear
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<!-- Active filter chips -->
+{% if branch_filter or search %}
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap" style="margin-top:-0.25rem;">
+    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;">Filters:</span>
+    {% if branch_filter %}
+        {% for branch in branches %}{% if branch.id|string == branch_filter %}
+        <span class="filter-chip">
+            <i class="bi bi-building me-1"></i>{{ branch.name }}
+            <a href="{{ url_for('reports.inbox', q=search) }}" class="filter-chip-remove">×</a>
+        </span>
+        {% endif %}{% endfor %}
+    {% endif %}
+    {% if search %}
+    <span class="filter-chip">
+        <i class="bi bi-search me-1"></i>"{{ search }}"
+        <a href="{{ url_for('reports.inbox', branch_id=branch_filter) }}" class="filter-chip-remove">×</a>
+    </span>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ===== Report List ===== -->
+{% if reports %}
+<div class="qc-card" style="overflow:hidden;">
+
+    <!-- List header -->
+    <div style="border-bottom:1px solid var(--border-color);padding:0.65rem 1.25rem;
+                display:flex;align-items:center;justify-content:space-between;background:var(--dark-bg);">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-inbox" style="color:var(--gold);font-size:0.9rem;"></i>
+            <span style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.5);
+                         text-transform:uppercase;letter-spacing:0.05em;">
+                {% if branch_filter or search %}Filtered results{% else %}Inbox{% endif %}
+                &mdash; {{ reports|length }} report{{ 's' if reports|length != 1 }}
+            </span>
+        </div>
+        {% if unread_count > 0 and not branch_filter and not search %}
+        <span style="font-size:0.75rem;color:var(--gold);font-weight:600;">
+            {{ unread_count }} unread
+        </span>
+        {% endif %}
+    </div>
+
+    {% for report in reports %}
+    <div class="email-list-item {{ 'unread' if not report.is_read }}"
+         onclick="window.location='{{ url_for('reports.view', report_id=report.id) }}'"
+         style="cursor:pointer;">
+
+        <div class="email-list-meta">
+            <div class="d-flex align-items-center gap-2">
+                <div class="email-avatar">{{ report.sender_name[0] | upper }}</div>
+                <div>
+                    <span class="email-sender-name {{ 'fw-bold' if not report.is_read }}">
+                        {{ report.sender_name }}
+                    </span>
+                    <span class="email-branch-tag">{{ report.branch_name }}</span>
+                    {% if not report.is_read %}
+                        <span class="email-unread-dot"></span>
+                    {% endif %}
+                    {% if report.reply_count > 0 %}
+                        <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.4rem;">
+                            <i class="bi bi-chat-left-dots me-1"></i>{{ report.reply_count }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="email-date-label">
+                <span>{{ report.report_date }}</span>
+                <span style="color:var(--text-muted);font-size:0.75rem;">{{ report.created_at[:16] }}</span>
+            </div>
+        </div>
+
+        <div class="email-subject-line {{ 'fw-bold' if not report.is_read }}">
+            {% if not report.is_read %}
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;
+                             background:var(--gold);margin-right:6px;vertical-align:middle;"></span>
+            {% endif %}
+            {{ report.subject }}
+        </div>
+        <div class="email-preview">
+            {{ report.body[:130] }}{% if report.body|length > 130 %}…{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="qc-card">
+    <div class="empty-state">
+        <i class="bi bi-envelope-open" style="font-size:3rem;color:var(--text-muted);"></i>
+        {% if branch_filter or search %}
+            <p style="margin-top:1rem;">No reports match your filters.</p>
+            <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm mt-2">
+                <i class="bi bi-x-circle me-1"></i>Clear Filters
+            </a>
+        {% else %}
+            <p style="margin-top:1rem;">No daily reports have been submitted yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* ---- Filter bar ---- */
+.filter-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.filter-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.filter-select {
+    height: 38px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--body-bg);
+    color: var(--text-dark);
+    font-size: 0.85rem;
+    cursor: pointer;
+    min-width: 180px;
+}
+.filter-select:focus { outline: none; border-color: var(--gold); }
+.filter-input {
+    height: 38px;
+    width: 100%;
+    padding: 0 2rem 0 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--body-bg);
+    color: var(--text-dark);
+    font-size: 0.85rem;
+}
+.filter-input:focus { outline: none; border-color: var(--gold); }
+.filter-clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1;
+}
+.filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0;
+    align-self: flex-end;
+}
+
+/* ---- Filter chips ---- */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--gold-pale);
+    color: var(--gold-deeper);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.filter-chip-remove {
+    color: var(--gold-deeper);
+    text-decoration: none;
+    font-weight: 700;
+    margin-left: 2px;
+    opacity: 0.7;
+}
+.filter-chip-remove:hover { opacity: 1; }
+
+/* ---- Email list ---- */
+.email-list-item {
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s;
+}
+.email-list-item:last-child { border-bottom: none; }
+.email-list-item:hover { background: var(--gold-light); }
+.email-list-item.unread { border-left: 3px solid var(--gold); }
+.email-list-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+.email-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--gold-dark);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.email-sender-name { font-size: 0.875rem; color: var(--text-dark); }
+.email-branch-tag {
+    font-size: 0.72rem;
+    background: var(--gold-pale);
+    color: var(--gold-deeper);
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-weight: 600;
+    margin-left: 0.4rem;
+}
+.email-unread-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+.email-date-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    font-size: 0.78rem;
+    color: var(--text-mid);
+    font-weight: 500;
+    white-space: nowrap;
+}
+.email-subject-line {
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    margin-bottom: 0.2rem;
+    padding-left: calc(34px + 0.5rem);
+}
+.email-preview {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    padding-left: calc(34px + 0.5rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+{% endblock %}

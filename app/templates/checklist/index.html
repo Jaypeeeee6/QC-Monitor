@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Daily Checklist — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-clipboard2-check me-2" style="color:var(--gold);"></i>Daily Checklist</h1>
+        <p class="subtitle">{{ current_user.branch_name }} &mdash; {{ today }}</p>
+    </div>
+
+    {% set all_done = [] %}
+    {% for tmpl in templates %}{% if status[tmpl.id] %}{% set _ = all_done.append(1) %}{% endif %}{% endfor %}
+
+    {% if all_done|length < templates|length %}
+        <a href="{{ url_for('checklist.submit_today') }}" class="btn-qc-primary">
+            <i class="bi bi-pencil-square me-1"></i>
+            {% if all_done|length == 0 %}
+                Start Daily Checklist
+            {% else %}
+                Continue Checklist
+            {% endif %}
+        </a>
+    {% endif %}
+</div>
+
+<!-- Overall status banner -->
+{% set all_done2 = [] %}
+{% for tmpl in templates %}{% if status[tmpl.id] %}{% set _ = all_done2.append(1) %}{% endif %}{% endfor %}
+
+{% if all_done2|length == templates|length and templates|length > 0 %}
+<div style="background:var(--gold-light);border:1px solid var(--gold-pale);border-radius:12px;
+            padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;">
+    <i class="bi bi-patch-check-fill" style="font-size:2rem;color:var(--gold-deeper);"></i>
+    <div>
+        <p style="margin:0;font-weight:700;font-size:1rem;color:var(--text-dark);">
+            All checklists submitted for today!
+        </p>
+        <p style="margin:0;font-size:0.82rem;color:var(--text-light);">
+            Great work. See your results below.
+        </p>
+    </div>
+</div>
+{% elif all_done2|length == 0 %}
+<div style="background:var(--dark-bg);border:1px solid var(--gold-dark);border-radius:12px;
+            padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;
+            justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-clipboard2-x" style="font-size:2rem;color:var(--gold);"></i>
+        <div>
+            <p style="margin:0;font-weight:700;font-size:1rem;color:#fff;">
+                No checklists submitted yet today
+            </p>
+            <p style="margin:0;font-size:0.82rem;color:rgba(255,255,255,0.5);">
+                Fill out Food Safety and Cleaning together in one page.
+            </p>
+        </div>
+    </div>
+    <a href="{{ url_for('checklist.submit_today') }}" class="btn-qc-primary">
+        <i class="bi bi-pencil-square me-1"></i>Start Daily Checklist
+    </a>
+</div>
+{% else %}
+<div style="background:var(--gold-pale);border:1px solid var(--gold-dark);border-radius:12px;
+            padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;
+            justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-hourglass-split" style="font-size:2rem;color:var(--gold-deeper);"></i>
+        <div>
+            <p style="margin:0;font-weight:700;font-size:1rem;color:var(--text-dark);">
+                {{ all_done2|length }} of {{ templates|length }} sections submitted
+            </p>
+            <p style="margin:0;font-size:0.82rem;color:var(--text-light);">
+                You still have pending sections — continue where you left off.
+            </p>
+        </div>
+    </div>
+    <a href="{{ url_for('checklist.submit_today') }}" class="btn-qc-primary">
+        <i class="bi bi-pencil-square me-1"></i>Continue Checklist
+    </a>
+</div>
+{% endif %}
+
+<!-- Per-checklist status cards -->
+<div class="row g-4">
+    {% for tmpl in templates %}
+    {% set sub = status[tmpl.id] %}
+    <div class="col-md-6">
+        <div class="branch-kpi-card">
+            <div class="kpi-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if tmpl.name == 'Food Safety' %}
+                            <i class="bi bi-egg-fried" style="font-size:1.2rem;color:var(--gold);"></i>
+                        {% else %}
+                            <i class="bi bi-bucket" style="font-size:1.2rem;color:var(--gold);"></i>
+                        {% endif %}
+                        <div>
+                            <h6 style="margin:0;">{{ tmpl.name }}</h6>
+                            <p style="margin:0;font-size:0.75rem;color:rgba(255,255,255,0.45);">{{ tmpl.description }}</p>
+                        </div>
+                    </div>
+                    {% if sub %}
+                        <span class="status-pill submitted"><i class="bi bi-check-circle-fill"></i> Done</span>
+                    {% else %}
+                        <span class="status-pill pending"><i class="bi bi-clock"></i> Pending</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="kpi-body">
+                {% if sub %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <p style="margin:0;font-size:0.75rem;color:var(--text-light);">Submitted at</p>
+                            <p style="margin:0;font-weight:600;color:var(--text-dark);font-size:0.875rem;">
+                                {{ sub.submitted_at[:16] | replace('T',' ') if 'T' in sub.submitted_at else sub.submitted_at[:16] }}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <p style="margin:0;font-size:0.75rem;color:var(--text-light);">Compliance</p>
+                            {% set pct = ((sub.yes_count / sub.total) * 100) | round(1) if sub.total else 0 %}
+                            <p style="margin:0;font-weight:700;font-size:1.1rem;
+                                color:{{ '#22c55e' if pct >= 80 else '#d97706' if pct >= 60 else '#ef4444' }};">
+                                {{ pct }}%
+                            </p>
+                        </div>
+                    </div>
+
+                    {% set pct_int = ((sub.yes_count / sub.total) * 100)|int if sub.total else 0 %}
+                    <div class="compliance-bar mb-3">
+                        <div class="bar-fill {{ 'high' if pct_int >= 80 else 'medium' if pct_int >= 60 else 'low' }}"
+                             style="width:{{ pct_int }}%;"></div>
+                    </div>
+
+                    <div class="kpi-metric">
+                        <span class="kpi-metric-label"><i class="bi bi-star me-1"></i>QC Score</span>
+                        <span class="kpi-metric-value">
+                            {% if sub.score is not none %}
+                                <span style="color:{{ '#22c55e' if sub.score >= 90 else 'var(--gold-deeper)' if sub.score >= 75 else '#d97706' if sub.score >= 60 else '#ef4444' }};">
+                                    {{ sub.score }}/100
+                                </span>
+                            {% else %}
+                                <span style="color:var(--text-muted);">Awaiting Score</span>
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="{{ url_for('checklist.view', submission_id=sub.id) }}"
+                           class="btn-qc-primary w-100 justify-content-center">
+                            <i class="bi bi-eye me-1"></i>View Submission
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="empty-state" style="padding:1.25rem 1rem;">
+                        <i class="bi bi-clipboard-x" style="font-size:2rem;"></i>
+                        <p>Not yet submitted for today</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not templates %}
+<div class="qc-card">
+    <div class="empty-state">
+        <i class="bi bi-clipboard2-x"></i>
+        <p>No checklists configured. Contact your QC Admin.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

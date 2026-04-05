@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% block title %}Daily Checklist — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-clipboard2-check me-2" style="color:var(--gold);"></i>Daily Checklist</h1>
+        <p class="subtitle">{{ current_user.branch_name }} &mdash; {{ today }}</p>
+    </div>
+    <a href="{{ url_for('checklist.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<!-- Progress bar -->
+<div class="qc-card mb-4" style="padding:0.85rem 1.25rem;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span style="font-size:0.82rem;font-weight:600;color:var(--text-mid);">
+            <i class="bi bi-list-check me-1"></i>Progress
+        </span>
+        <span style="font-size:0.82rem;color:var(--text-light);">
+            {% set done = [] %}{% for t in templates %}{% if existing[t.id] %}{% set _ = done.append(1) %}{% endif %}{% endfor %}
+            {{ done|length }} of {{ templates|length }} sections submitted
+        </span>
+    </div>
+    <div class="compliance-bar" style="height:8px;">
+        {% set done_count = [] %}{% for t in templates %}{% if existing[t.id] %}{% set _ = done_count.append(1) %}{% endif %}{% endfor %}
+        {% set pct = (done_count|length / templates|length * 100)|int %}
+        <div class="bar-fill {{ 'high' if pct == 100 else 'medium' if pct > 0 else 'low' }}" style="width:{{ pct }}%;"></div>
+    </div>
+</div>
+
+<form method="POST" id="checklistForm" action="{{ url_for('checklist.submit_today') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% for tmpl in templates %}
+    {% set items = items_by_template[tmpl.id] %}
+    {% set is_done = existing[tmpl.id] is not none %}
+
+    <div class="cl-section mb-4">
+
+        <!-- Section title bar -->
+        <div class="cl-section-header">
+            <div class="d-flex align-items-center gap-2">
+                {% if tmpl.name == 'Food Safety' %}
+                    <i class="bi bi-egg-fried" style="font-size:1.1rem;color:var(--gold);"></i>
+                {% else %}
+                    <i class="bi bi-bucket" style="font-size:1.1rem;color:var(--gold);"></i>
+                {% endif %}
+                <span class="cl-section-title">{{ tmpl.name | upper }} CHECKLIST</span>
+            </div>
+            {% if is_done %}
+                <span class="status-pill submitted"><i class="bi bi-check-circle-fill"></i> Submitted</span>
+            {% elif not items %}
+                <span class="status-pill" style="background:rgba(217,189,125,0.15);color:var(--gold);">
+                    <i class="bi bi-dash-circle"></i> No Items
+                </span>
+            {% else %}
+                <span class="status-pill pending"><i class="bi bi-clock"></i> Pending</span>
+            {% endif %}
+        </div>
+
+        {% if is_done %}
+        <!-- Already submitted -->
+        <div class="cl-done-banner">
+            <i class="bi bi-lock-fill" style="color:var(--gold-deeper);"></i>
+            <span>This section was already submitted today.</span>
+            <a href="{{ url_for('checklist.view', submission_id=existing[tmpl.id]) }}"
+               class="btn btn-sm btn-outline-secondary ms-auto">
+                <i class="bi bi-eye me-1"></i>View
+            </a>
+        </div>
+
+        {% elif not items %}
+        <div class="cl-empty-banner">
+            <i class="bi bi-clipboard-x"></i>
+            No checklist items configured for this section. Contact your QC Admin.
+        </div>
+
+        {% else %}
+        <!-- Checklist table -->
+        <div class="cl-table-wrap">
+            <table class="cl-table">
+                <thead>
+                    <tr>
+                        <th class="cl-th-no">No</th>
+                        <th class="cl-th-desc">Description</th>
+                        <th class="cl-th-ans">Yes</th>
+                        <th class="cl-th-ans">No</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in items %}
+                {% set key = tmpl.id|string + '_' + item.id|string %}
+                    <!-- Answer row -->
+                    <tr class="cl-row" data-key="{{ key }}">
+                        <td class="cl-td-no">{{ loop.index }}</td>
+                        <td class="cl-td-desc">{{ item.item_text }}</td>
+                        <td class="cl-td-ans">
+                            <label class="cl-checkbox-label yes">
+                                <input type="radio" name="answer_{{ key }}" value="yes"
+                                       data-key="{{ key }}" data-value="yes">
+                                <span class="cl-checkbox"></span>
+                            </label>
+                        </td>
+                        <td class="cl-td-ans">
+                            <label class="cl-checkbox-label no">
+                                <input type="radio" name="answer_{{ key }}" value="no"
+                                       data-key="{{ key }}" data-value="no">
+                                <span class="cl-checkbox"></span>
+                            </label>
+                        </td>
+                    </tr>
+                    <!-- Reason row (hidden until No is selected) -->
+                    <tr class="cl-reason-row" id="reason-row-{{ key }}" style="display:none;">
+                        <td class="cl-td-no" style="border-top:none;"></td>
+                        <td colspan="3" style="padding:0 0.5rem 0.6rem;border-top:none;">
+                            <div class="cl-reason-expand">
+                                <i class="bi bi-exclamation-triangle-fill me-1" style="color:#f59e0b;"></i>
+                                <textarea name="reason_{{ key }}"
+                                          id="reason-{{ key }}"
+                                          placeholder="Required: explain why this item is not compliant…"
+                                          rows="2" class="cl-reason-input"></textarea>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Submit button -->
+    {% set has_pending = [] %}
+    {% for t in templates %}
+        {% if existing[t.id] is none and items_by_template[t.id] %}{% set _ = has_pending.append(1) %}{% endif %}
+    {% endfor %}
+    {% if has_pending %}
+    <div class="d-flex justify-content-end gap-3 mb-4">
+        <a href="{{ url_for('checklist.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+        <button type="submit" class="btn-qc-success px-5" style="font-size:0.95rem;padding:0.7rem 2.5rem;">
+            <i class="bi bi-send me-2"></i>Submit Daily Checklist
+        </button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Section wrapper */
+.cl-section {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.cl-section-header {
+    background: var(--dark-bg);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--gold-dark);
+}
+.cl-section-title {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.08em;
+}
+.cl-done-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--gold-light);
+    border-top: 1px solid var(--gold-pale);
+    font-size: 0.875rem;
+    color: var(--text-mid);
+    font-weight: 500;
+}
+.cl-empty-banner {
+    padding: 1.25rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    background: var(--body-bg);
+}
+
+/* Table */
+.cl-table-wrap { overflow-x: auto; }
+.cl-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+}
+.cl-table thead tr {
+    background: var(--gold-pale);
+    border-bottom: 2px solid var(--gold-dark);
+}
+.cl-table thead th {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dark);
+}
+.cl-th-no  { width: 48px; text-align: center; }
+.cl-th-desc { text-align: left; }
+.cl-th-ans { width: 72px; text-align: center; }
+
+.cl-row { border-bottom: 1px solid var(--border-color); transition: background 0.1s; }
+.cl-row:hover { background: rgba(217,189,125,0.05); }
+.cl-row.answered-no { background: rgba(251,191,36,0.06); }
+.cl-row.answered-yes { background: rgba(34,197,94,0.04); }
+.cl-row.unanswered-error { background: rgba(239,68,68,0.06); outline: 2px solid #ef4444; outline-offset: -2px; }
+
+.cl-td-no {
+    padding: 0.7rem 0.85rem;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    vertical-align: top;
+}
+.cl-td-desc {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    line-height: 1.45;
+}
+.cl-td-ans {
+    padding: 0.7rem 0.85rem;
+    text-align: center;
+    vertical-align: top;
+}
+
+/* Custom checkbox */
+.cl-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+}
+.cl-checkbox-label input[type="radio"] { display: none; }
+.cl-checkbox {
+    width: 22px; height: 22px;
+    border: 2px solid #cbd5e1;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    background: #fff;
+    position: relative;
+}
+.cl-checkbox-label.yes input:checked ~ .cl-checkbox {
+    background: #22c55e;
+    border-color: #16a34a;
+}
+.cl-checkbox-label.no input:checked ~ .cl-checkbox {
+    background: #ef4444;
+    border-color: #dc2626;
+}
+.cl-checkbox-label input:checked ~ .cl-checkbox::after {
+    content: '✓';
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.cl-checkbox-label.no input:checked ~ .cl-checkbox::after { content: '✗'; }
+
+/* Reason row */
+.cl-reason-row td { background: rgba(251,191,36,0.06); }
+.cl-reason-expand {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+}
+.cl-reason-input {
+    flex: 1;
+    border: 1.5px solid #f59e0b;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.82rem;
+    resize: vertical;
+    outline: none;
+    background: #fffbeb;
+    color: var(--text-dark);
+    font-family: inherit;
+    min-height: 52px;
+}
+.cl-reason-input:focus { border-color: #d97706; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Attach change listeners to all radio inputs in the checklist table
+    document.querySelectorAll('.cl-table input[type="radio"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var key = this.dataset.key;
+            var val = this.value;
+            var reasonRow = document.getElementById('reason-row-' + key);
+            var answerRow = this.closest('tr.cl-row');
+
+            // Update row highlight
+            if (answerRow) {
+                answerRow.classList.remove('answered-yes', 'answered-no', 'unanswered-error');
+                answerRow.classList.add(val === 'yes' ? 'answered-yes' : 'answered-no');
+            }
+
+            if (!reasonRow) return;
+
+            if (val === 'no') {
+                reasonRow.style.display = '';
+                var ta = document.getElementById('reason-' + key);
+                if (ta) { ta.required = true; ta.focus(); }
+            } else {
+                reasonRow.style.display = 'none';
+                var ta = document.getElementById('reason-' + key);
+                if (ta) { ta.required = false; ta.value = ''; }
+            }
+        });
+    });
+
+    // Form validation
+    var form = document.getElementById('checklistForm');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            var valid = true;
+
+            document.querySelectorAll('.cl-row[data-key]').forEach(function (row) {
+                var key = row.dataset.key;
+                var radios = row.querySelectorAll('input[type="radio"]');
+                var answered = false;
+                var answerVal = '';
+
+                radios.forEach(function (r) {
+                    if (r.checked) { answered = true; answerVal = r.value; }
+                });
+
+                row.classList.remove('unanswered-error');
+                if (!answered) {
+                    row.classList.add('unanswered-error');
+                    valid = false;
+                }
+
+                if (answered && answerVal === 'no') {
+                    var ta = document.getElementById('reason-' + key);
+                    if (ta && ta.value.trim().length < 5) {
+                        ta.style.borderColor = '#ef4444';
+                        valid = false;
+                    } else if (ta) {
+                        ta.style.borderColor = '#f59e0b';
+                    }
+                }
+            });
+
+            if (!valid) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                showToast('Please answer all items. Reasons are required for any "No" answers.', 'danger');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

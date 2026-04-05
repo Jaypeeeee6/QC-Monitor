@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Login — QC Monitor{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+    <div style="width:100%;max-width:420px;">
+
+        <!-- Logo Card -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <i class="bi bi-clipboard2-pulse" style="font-size:2.5rem;color:#7eb6ff;"></i>
+                <h2>QC Monitor</h2>
+                <p>Sign in to your account</p>
+            </div>
+            <div class="form-card-body">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="qc-input-group">
+                        <label for="email"><i class="bi bi-envelope me-1"></i>Email Address</label>
+                        <input type="email" id="email" name="email"
+                               placeholder="Enter your email address"
+                               value="{{ request.form.get('email', '') }}"
+                               autocomplete="email" required>
+                    </div>
+
+                    <div class="qc-input-group">
+                        <label for="password"><i class="bi bi-lock me-1"></i>Password</label>
+                        <input type="password" id="password" name="password"
+                               placeholder="Enter your password"
+                               autocomplete="current-password" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit-full">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </button>
+                </form>
+
+                <div style="background:#f8fafc;border:1px solid #e8ecf2;border-radius:8px;
+                            padding:0.75rem 1rem;margin-top:1rem;
+                            font-size:0.8rem;color:#7a869a;text-align:center;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Don't have an account? Contact your <strong style="color:#4e73df;">IT Admin</strong> to create one for you.
+                </div>
+            </div>
+        </div>
+
+        <p style="text-align:center;color:rgba(255,255,255,0.35);font-size:0.78rem;margin-top:1.25rem;">
+            QC Monitor &copy; 2026 — Internal Use Only
+        </p>
+    </div>
+</div>
+{% endblock %}

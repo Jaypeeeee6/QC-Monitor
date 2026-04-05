@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}Branch Management — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-building me-2" style="color:#4e73df;"></i>Branch Management</h1>
+        <p class="subtitle">{{ branches|length }} branch{{ 'es' if branches|length != 1 }} configured</p>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- Existing Branches -->
+    <div class="col-lg-8">
+        <div class="qc-card">
+            {% if branches %}
+            <div style="overflow-x:auto;">
+                <table class="qc-table">
+                    <thead>
+                        <tr>
+                            <th>Branch Name</th>
+                            <th>Location</th>
+                            <th>Managers</th>
+                            <th>Created</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in branches %}
+                        <tr>
+                            <td>
+                                <strong style="color:#1a2744;">
+                                    <i class="bi bi-building me-1" style="color:#4e73df;"></i>
+                                    {{ b.name }}
+                                </strong>
+                            </td>
+                            <td style="color:#7a869a;font-size:0.85rem;">
+                                {{ b.location or '—' }}
+                            </td>
+                            <td>
+                                {% if b.manager_count > 0 %}
+                                <span class="status-pill submitted" style="font-size:0.72rem;">
+                                    <i class="bi bi-people-fill"></i> {{ b.manager_count }}
+                                </span>
+                                {% else %}
+                                <span style="color:#dee2e6;font-size:0.82rem;">No managers</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:#7a869a;font-size:0.8rem;">{{ b.created_at[:10] if b.created_at else '—' }}</td>
+                            <td>
+                                <div class="d-flex justify-content-end">
+                                    <form method="POST"
+                                          action="{{ url_for('admin.delete_branch', branch_id=b.id) }}"
+                                          onsubmit="return confirm('Delete branch {{ b.name }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                title="Delete Branch">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-building-x"></i>
+                <p>No branches yet. Create one using the form.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Add Branch Form -->
+    <div class="col-lg-4">
+        <div class="qc-card">
+            <div class="card-header-bar">
+                <h5><i class="bi bi-plus-circle me-2"></i>Add New Branch</h5>
+            </div>
+            <div class="card-body-pad">
+                <form method="POST" action="{{ url_for('admin.create_branch') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="qc-input-group">
+                        <label>Branch Name</label>
+                        <input type="text" name="name" placeholder="e.g. Branch 4" required>
+                    </div>
+                    <div class="qc-input-group">
+                        <label>Location <span style="color:#adb5bd;font-weight:400;">(optional)</span></label>
+                        <input type="text" name="location" placeholder="e.g. Al Olaya, Riyadh">
+                    </div>
+                    <button type="submit" class="btn-qc-primary w-100 justify-content-center mt-2">
+                        <i class="bi bi-plus me-1"></i>Add Branch
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Submit {{ template.name }} — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>
+            {% if template.name == 'Food Safety' %}
+                <i class="bi bi-egg-fried me-2" style="color:#1cc88a;"></i>
+            {% else %}
+                <i class="bi bi-bucket me-2" style="color:#4e73df;"></i>
+            {% endif %}
+            {{ template.name }} Checklist
+        </h1>
+        <p class="subtitle">
+            {{ current_user.branch_name }} &mdash; {{ today | replace('-', '/') }}
+        </p>
+    </div>
+    <a href="{{ url_for('checklist.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<!-- Progress indicator -->
+<div class="qc-card mb-4">
+    <div class="card-body-pad" style="padding:0.75rem 1.25rem;">
+        <div class="d-flex justify-content-between align-items-center" style="font-size:0.85rem;color:#7a869a;">
+            <span><i class="bi bi-list-check me-1"></i>{{ items|length }} items to complete</span>
+            <span>All fields required — Select Yes or No for each item</span>
+        </div>
+    </div>
+</div>
+
+<form method="POST" id="checklistForm" action="{{ url_for('checklist.submit', template_id=template.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% for item in items %}
+    <div class="checklist-item-card" data-item-id="{{ item.id }}">
+        <div class="d-flex align-items-start">
+            <span class="item-number">{{ loop.index }}</span>
+            <span class="item-text">{{ item.item_text }}</span>
+        </div>
+
+        <div class="answer-group">
+            <!-- YES button -->
+            <label class="answer-btn yes-btn" data-item-id="{{ item.id }}" data-value="yes">
+                <input type="radio" name="answer_{{ item.id }}" value="yes">
+                <i class="bi bi-check-circle"></i> Yes
+            </label>
+
+            <!-- NO button -->
+            <label class="answer-btn no-btn" data-item-id="{{ item.id }}" data-value="no">
+                <input type="radio" name="answer_{{ item.id }}" value="no">
+                <i class="bi bi-x-circle"></i> No
+            </label>
+        </div>
+
+        <!-- Reason (shown only when No is selected) -->
+        <div class="reason-container" id="reason-container-{{ item.id }}">
+            <textarea
+                id="reason-{{ item.id }}"
+                name="reason_{{ item.id }}"
+                placeholder="Required: Explain why this item is not compliant (min 5 characters)..."
+                rows="2"></textarea>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="d-flex justify-content-end gap-3 mt-4 mb-4">
+        <a href="{{ url_for('checklist.index') }}"
+           class="btn btn-outline-secondary px-4">
+            Cancel
+        </a>
+        <button type="submit" class="btn-qc-success px-5" style="font-size:0.95rem;padding:0.65rem 2rem;">
+            <i class="bi bi-send me-2"></i>Submit Checklist
+        </button>
+    </div>
+</form>
+{% endblock %}

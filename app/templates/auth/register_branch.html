@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Register — Branch Manager{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+    <div style="width:100%;max-width:480px;">
+        <div class="form-card">
+            <div class="form-card-header">
+                <i class="bi bi-building" style="font-size:2.2rem;color:#7eb6ff;"></i>
+                <h2>Branch Manager</h2>
+                <p>Create your account to submit daily checklists</p>
+            </div>
+            <div class="form-card-body">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('auth.register_branch') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-person me-1"></i>Full Name</label>
+                        <input type="text" name="full_name"
+                               value="{{ request.form.get('full_name', '') }}"
+                               placeholder="e.g. Ahmed Al-Rashid" required>
+                    </div>
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-envelope me-1"></i>Email Address</label>
+                        <input type="email" name="email"
+                               value="{{ request.form.get('email', '') }}"
+                               placeholder="you@example.com" required>
+                    </div>
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-at me-1"></i>Username</label>
+                        <input type="text" name="username"
+                               value="{{ request.form.get('username', '') }}"
+                               placeholder="Choose a username (min 3 chars)" required minlength="3">
+                        <p class="input-hint">Lowercase letters and numbers only. Used to log in.</p>
+                    </div>
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-building me-1"></i>Branch</label>
+                        <select name="branch_id" required>
+                            <option value="">— Select your branch —</option>
+                            {% for branch in branches %}
+                            <option value="{{ branch.id }}"
+                                {{ 'selected' if request.form.get('branch_id') == branch.id|string }}>
+                                {{ branch.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="qc-input-group">
+                                <label><i class="bi bi-lock me-1"></i>Password</label>
+                                <input type="password" name="password"
+                                       placeholder="Min 8 characters" required minlength="8">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="qc-input-group">
+                                <label><i class="bi bi-lock-fill me-1"></i>Confirm Password</label>
+                                <input type="password" name="confirm_password"
+                                       placeholder="Repeat password" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit-full">
+                        <i class="bi bi-person-plus me-2"></i>Create Account
+                    </button>
+                </form>
+
+                <p style="text-align:center;margin-top:1.25rem;font-size:0.85rem;color:#7a869a;">
+                    Already have an account?
+                    <a href="{{ url_for('auth.login') }}" style="color:#4e73df;font-weight:600;text-decoration:none;">Sign in</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

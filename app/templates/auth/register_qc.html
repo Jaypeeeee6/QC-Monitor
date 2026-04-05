@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Register — QC Admin{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+    <div style="width:100%;max-width:480px;">
+        <div class="form-card">
+            <div class="form-card-header">
+                <i class="bi bi-shield-check" style="font-size:2.2rem;"></i>
+                <h2>QC Admin Registration</h2>
+                <p>Authorized personnel only — Admin key required</p>
+            </div>
+            <div class="form-card-body">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="alert alert-warning d-flex gap-2 align-items-start mb-3" style="font-size:0.82rem;">
+                    <i class="bi bi-key-fill mt-1 flex-shrink-0"></i>
+                    <span>QC Admin accounts require a secret admin key. Contact your system administrator to obtain it.</span>
+                </div>
+
+                <form method="POST" action="{{ url_for('auth.register_qc') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-key me-1"></i>Admin Key</label>
+                        <input type="password" name="admin_key"
+                               placeholder="Enter the admin key" required>
+                    </div>
+
+                    <hr style="border-color:#e8ecf2;margin:1rem 0;">
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-person me-1"></i>Full Name</label>
+                        <input type="text" name="full_name"
+                               value="{{ request.form.get('full_name', '') }}"
+                               placeholder="e.g. Naila Hassan" required>
+                    </div>
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-envelope me-1"></i>Email Address</label>
+                        <input type="email" name="email"
+                               value="{{ request.form.get('email', '') }}"
+                               placeholder="you@company.com" required>
+                    </div>
+
+                    <div class="qc-input-group">
+                        <label><i class="bi bi-at me-1"></i>Username</label>
+                        <input type="text" name="username"
+                               value="{{ request.form.get('username', '') }}"
+                               placeholder="Choose a username" required minlength="3">
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="qc-input-group">
+                                <label><i class="bi bi-lock me-1"></i>Password</label>
+                                <input type="password" name="password"
+                                       placeholder="Min 8 characters" required minlength="8">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="qc-input-group">
+                                <label><i class="bi bi-lock-fill me-1"></i>Confirm</label>
+                                <input type="password" name="confirm_password"
+                                       placeholder="Repeat password" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit-full"
+                            style="background:linear-gradient(135deg,#1cc88a 0%,#17a876 100%);">
+                        <i class="bi bi-shield-plus me-2"></i>Create QC Admin Account
+                    </button>
+                </form>
+
+                <p style="text-align:center;margin-top:1.25rem;font-size:0.85rem;color:#7a869a;">
+                    <a href="{{ url_for('auth.login') }}" style="color:#4e73df;font-weight:600;text-decoration:none;">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Login
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

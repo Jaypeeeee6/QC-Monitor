@@ -1,0 +1,468 @@
+{% extends 'base.html' %}
+{% block title %}Manage Checklist Items — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-ui-checks me-2" style="color:var(--gold);"></i>Checklist Items</h1>
+        <p class="subtitle">Build the daily checklist templates used by Branch Managers</p>
+    </div>
+</div>
+
+<!-- Filter bar -->
+<form method="GET" action="{{ url_for('checklist.manage_items') }}" class="filter-bar mb-4">
+    <div class="filter-group">
+        <label class="filter-label"><i class="bi bi-grid me-1"></i>Type</label>
+        <select name="template_id" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for t in templates %}
+            <option value="{{ t.id }}" {{ 'selected' if filter_template == t.id|string }}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label"><i class="bi bi-building me-1"></i>Branch</label>
+        <select name="branch_id" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Branches</option>
+            {% for b in branches %}
+            <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label"><i class="bi bi-toggle-on me-1"></i>Status</label>
+        <select name="status" class="filter-select" onchange="this.form.submit()">
+            <option value="all"    {{ 'selected' if filter_status == 'all' }}>All</option>
+            <option value="active" {{ 'selected' if filter_status == 'active' or not filter_status }}>Active only</option>
+            <option value="inactive" {{ 'selected' if filter_status == 'inactive' }}>Inactive only</option>
+        </select>
+    </div>
+    {% if filter_template or filter_branch or filter_status not in ('', 'active') %}
+    <div class="filter-actions" style="align-self:flex-end;">
+        <a href="{{ url_for('checklist.manage_items') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-circle me-1"></i>Clear
+        </a>
+    </div>
+    {% endif %}
+</form>
+
+<!-- Checklist table -->
+<div class="qc-card" style="overflow:hidden;">
+
+    <div style="background:var(--dark-bg);padding:0.65rem 1.25rem;border-bottom:2px solid var(--gold-dark);
+                display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.5);
+                     text-transform:uppercase;letter-spacing:0.07em;">
+            <i class="bi bi-list-check me-1" style="color:var(--gold);"></i>
+            {{ items|length }} item{{ 's' if items|length != 1 }}
+            {% if filter_template or filter_branch %}&nbsp;(filtered){% endif %}
+        </span>
+        <span style="font-size:0.72rem;color:rgba(255,255,255,0.3);">
+            Click a description to edit it inline
+        </span>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="mi-table">
+            <thead>
+                <tr>
+                    <th class="mi-th-no">No</th>
+                    <th class="mi-th-desc">Description</th>
+                    <th class="mi-th-meta">Type</th>
+                    <th class="mi-th-meta">Branches</th>
+                    <th class="mi-th-status">Status</th>
+                    <th class="mi-th-actions"></th>
+                </tr>
+            </thead>
+            <tbody id="itemsBody">
+
+            {% if not items %}
+            <tr>
+                <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.85rem;">
+                    <i class="bi bi-clipboard-x" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                    No items found. Add one below.
+                </td>
+            </tr>
+            {% endif %}
+
+            {% for item in items %}
+            <tr class="mi-row {{ 'mi-inactive' if not item.is_active }}" data-item-id="{{ item.id }}">
+
+                <td class="mi-td-no">{{ loop.index }}</td>
+
+                <!-- Editable description -->
+                <td class="mi-td-desc">
+                    <span class="mi-text-display" title="Click to edit">{{ item.item_text }}</span>
+                    <form class="mi-edit-form" method="POST"
+                          action="{{ url_for('checklist.edit_item', item_id=item.id) }}"
+                          style="display:none;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="template_id" value="{{ item.template_id }}">
+                        <input type="hidden" name="display_order" value="{{ item.display_order }}">
+                        <input type="hidden" name="branch_scope"
+                               value="{{ 'specific' if item.branch_count > 0 else 'all' }}">
+                        <input class="mi-edit-input" type="text" name="item_text"
+                               value="{{ item.item_text }}" required>
+                        <div class="mi-edit-actions">
+                            <button type="submit" class="mi-btn-save">
+                                <i class="bi bi-check-lg"></i> Save
+                            </button>
+                            <button type="button" class="mi-btn-cancel">
+                                <i class="bi bi-x-lg"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </td>
+
+                <td class="mi-td-meta">
+                    <span class="mi-type-badge {{ 'food' if item.template_name == 'Food Safety' else 'clean' }}">
+                        {% if item.template_name == 'Food Safety' %}
+                            <i class="bi bi-egg-fried me-1"></i>
+                        {% else %}
+                            <i class="bi bi-bucket me-1"></i>
+                        {% endif %}
+                        {{ item.template_name }}
+                    </span>
+                </td>
+
+                <td class="mi-td-meta">
+                    {% if item.branch_count == 0 %}
+                        <span class="mi-scope-all"><i class="bi bi-globe me-1"></i>All</span>
+                    {% else %}
+                        <span class="mi-scope-specific" title="{{ item.branch_names }}">
+                            <i class="bi bi-building me-1"></i>{{ item.branch_count }} branch{{ 'es' if item.branch_count != 1 }}
+                        </span>
+                    {% endif %}
+                </td>
+
+                <td class="mi-td-status">
+                    <form method="POST" action="{{ url_for('checklist.toggle_item', item_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="mi-toggle-btn {{ 'active' if item.is_active else 'inactive' }}"
+                                title="{{ 'Click to deactivate' if item.is_active else 'Click to activate' }}">
+                            {{ 'Active' if item.is_active else 'Inactive' }}
+                        </button>
+                    </form>
+                </td>
+
+                <td class="mi-td-actions">
+                    <button type="button" class="mi-icon-btn edit-trigger"
+                            title="Edit" data-item-id="{{ item.id }}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <a href="{{ url_for('checklist.edit_item', item_id=item.id) }}"
+                       class="mi-icon-btn" title="Full Edit (branches etc.)">
+                        <i class="bi bi-sliders"></i>
+                    </a>
+                    <form method="POST" action="{{ url_for('checklist.delete_item', item_id=item.id) }}"
+                          style="display:inline;" onsubmit="return confirm('Delete this item?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="mi-icon-btn danger" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- ===== Inline Add Row ===== -->
+            <tr class="mi-add-row" id="addRow">
+                <td class="mi-td-no" style="color:var(--gold);font-size:1rem;">
+                    <i class="bi bi-plus-circle-fill"></i>
+                </td>
+                <td class="mi-td-desc" colspan="1">
+                    <form id="inlineAddForm" method="POST"
+                          action="{{ url_for('checklist.create_item') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="display_order" value="0">
+                        <input type="hidden" name="branch_scope" value="all">
+                        <input type="text" id="addItemText" name="item_text"
+                               class="mi-add-input"
+                               placeholder="Type new checklist item and press Enter or click Add…"
+                               autocomplete="off" maxlength="300">
+                    </form>
+                </td>
+                <td class="mi-td-meta">
+                    <select name="template_id" form="inlineAddForm" class="mi-add-select" required>
+                        <option value="">Type…</option>
+                        {% for t in templates %}
+                        <option value="{{ t.id }}"
+                                {{ 'selected' if filter_template == t.id|string }}>
+                            {{ t.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td class="mi-td-meta">
+                    <select name="branch_scope" form="inlineAddForm" class="mi-add-select"
+                            id="branchScopeSelect" onchange="toggleBranchSelect(this)">
+                        <option value="all">All Branches</option>
+                        <option value="specific">Specific…</option>
+                    </select>
+                </td>
+                <td class="mi-td-status" id="branchPickerCell" style="display:none;">
+                    <select name="branch_ids" form="inlineAddForm" class="mi-add-select" multiple
+                            style="height:60px;min-width:130px;">
+                        {% for b in branches %}
+                        <option value="{{ b.id }}">{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td class="mi-td-actions">
+                    <button type="submit" form="inlineAddForm" class="mi-icon-btn add">
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                </td>
+            </tr>
+
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="d-flex align-items-center gap-4 mt-3" style="font-size:0.75rem;color:var(--text-muted);">
+    <span><i class="bi bi-pencil me-1"></i>Click description or pencil to edit inline</span>
+    <span><i class="bi bi-sliders me-1"></i>Sliders icon = full edit (branch assignment etc.)</span>
+    <span><i class="bi bi-globe me-1"></i>All = visible to every branch</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Filter bar (reused) */
+.filter-bar {
+    display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.filter-select {
+    height: 36px; padding: 0 0.65rem;
+    border: 1px solid var(--border-color); border-radius: 8px;
+    background: var(--body-bg); color: var(--text-dark); font-size: 0.82rem;
+    cursor: pointer; min-width: 150px;
+}
+.filter-select:focus { outline: none; border-color: var(--gold); }
+
+/* Main table */
+.mi-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.mi-table thead tr {
+    background: var(--gold-pale);
+    border-bottom: 2px solid var(--gold-dark);
+}
+.mi-table thead th {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dark);
+    white-space: nowrap;
+}
+.mi-th-no     { width: 48px; text-align: center; }
+.mi-th-desc   { min-width: 260px; }
+.mi-th-meta   { width: 140px; }
+.mi-th-status { width: 100px; text-align: center; }
+.mi-th-actions { width: 110px; text-align: center; }
+
+.mi-row { border-bottom: 1px solid var(--border-color); transition: background 0.12s; }
+.mi-row:hover { background: rgba(217,189,125,0.05); }
+.mi-inactive { opacity: 0.5; }
+
+.mi-td-no {
+    padding: 0.65rem 0.85rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    vertical-align: middle;
+}
+.mi-td-desc {
+    padding: 0.65rem 0.85rem;
+    vertical-align: middle;
+}
+.mi-td-meta {
+    padding: 0.65rem 0.85rem;
+    vertical-align: middle;
+}
+.mi-td-status {
+    padding: 0.65rem 0.85rem;
+    text-align: center;
+    vertical-align: middle;
+}
+.mi-td-actions {
+    padding: 0.5rem 0.85rem;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Inline text display */
+.mi-text-display {
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    cursor: pointer;
+    display: block;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+}
+.mi-text-display:hover {
+    border-color: var(--gold-dark);
+    background: var(--gold-light);
+}
+
+/* Inline edit form */
+.mi-edit-form { display: none; }
+.mi-edit-input {
+    width: 100%;
+    border: 1.5px solid var(--gold);
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.875rem;
+    outline: none;
+    background: var(--body-bg);
+    color: var(--text-dark);
+    margin-bottom: 0.3rem;
+}
+.mi-edit-actions { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
+.mi-btn-save {
+    font-size: 0.75rem; padding: 3px 10px;
+    background: var(--gold); color: #fff;
+    border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.mi-btn-save:hover { background: var(--gold-dark); }
+.mi-btn-cancel {
+    font-size: 0.75rem; padding: 3px 10px;
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;
+}
+
+/* Badges */
+.mi-type-badge {
+    font-size: 0.72rem; font-weight: 600;
+    padding: 3px 9px; border-radius: 20px;
+    display: inline-flex; align-items: center;
+    white-space: nowrap;
+}
+.mi-type-badge.food { background: rgba(251,191,36,0.15); color: #b45309; }
+.mi-type-badge.clean { background: rgba(99,179,237,0.15); color: #1e6fa8; }
+.mi-scope-all { font-size: 0.72rem; color: #16a34a; font-weight: 600; }
+.mi-scope-specific { font-size: 0.72rem; color: #2563eb; font-weight: 600; cursor: help; }
+
+/* Toggle button */
+.mi-toggle-btn {
+    font-size: 0.7rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px; border: none; cursor: pointer;
+}
+.mi-toggle-btn.active { background: rgba(34,197,94,0.15); color: #15803d; }
+.mi-toggle-btn.inactive { background: rgba(239,68,68,0.12); color: #dc2626; }
+
+/* Icon buttons */
+.mi-icon-btn {
+    width: 30px; height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-mid);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; cursor: pointer;
+    text-decoration: none;
+    transition: all 0.12s;
+    margin: 0 1px;
+}
+.mi-icon-btn:hover { background: var(--gold-light); border-color: var(--gold); color: var(--gold-deeper); }
+.mi-icon-btn.danger:hover { background: rgba(239,68,68,0.1); border-color: #ef4444; color: #ef4444; }
+.mi-icon-btn.add {
+    width: auto; padding: 0 10px; gap: 4px;
+    background: var(--gold); border-color: var(--gold); color: #fff; font-weight: 600;
+}
+.mi-icon-btn.add:hover { background: var(--gold-dark); }
+
+/* Add row */
+.mi-add-row {
+    background: rgba(217,189,125,0.04);
+    border-top: 2px dashed var(--gold-dark);
+}
+.mi-add-input {
+    width: 100%;
+    border: 1.5px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.875rem;
+    outline: none;
+    background: var(--body-bg);
+    color: var(--text-dark);
+    transition: border-color 0.15s;
+}
+.mi-add-input:focus { border-color: var(--gold); }
+.mi-add-input::placeholder { color: var(--text-muted); font-size: 0.8rem; }
+.mi-add-select {
+    width: 100%;
+    border: 1.5px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.78rem;
+    outline: none;
+    background: var(--body-bg);
+    color: var(--text-dark);
+    cursor: pointer;
+}
+.mi-add-select:focus { border-color: var(--gold); }
+</style>
+
+<script>
+// Inline edit toggle
+document.querySelectorAll('.mi-text-display').forEach(function (span) {
+    span.addEventListener('click', function () { activateEdit(this.closest('tr')); });
+});
+document.querySelectorAll('.edit-trigger').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var row = document.querySelector('.mi-row[data-item-id="' + this.dataset.itemId + '"]');
+        if (row) activateEdit(row);
+    });
+});
+
+function activateEdit(row) {
+    var display = row.querySelector('.mi-text-display');
+    var form    = row.querySelector('.mi-edit-form');
+    var input   = row.querySelector('.mi-edit-input');
+    if (!display || !form) return;
+    display.style.display = 'none';
+    form.style.display = 'block';
+    if (input) { input.focus(); input.select(); }
+}
+
+document.querySelectorAll('.mi-btn-cancel').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var form    = this.closest('.mi-edit-form');
+        var display = form.parentElement.querySelector('.mi-text-display');
+        form.style.display = 'none';
+        if (display) display.style.display = '';
+    });
+});
+
+// Branch scope toggle in add row
+function toggleBranchSelect(sel) {
+    var cell = document.getElementById('branchPickerCell');
+    if (!cell) return;
+    cell.style.display = sel.value === 'specific' ? '' : 'none';
+}
+
+// Press Enter in add input to submit
+document.getElementById('addItemText').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('inlineAddForm').submit();
+    }
+});
+</script>
+{% endblock %}

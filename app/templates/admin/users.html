@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}User Management — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-people me-2" style="color:#4e73df;"></i>User Management</h1>
+        <p class="subtitle">{{ users|length }} account{{ 's' if users|length != 1 }} found</p>
+    </div>
+    <a href="{{ url_for('admin.create_user') }}" class="btn-qc-primary">
+        <i class="bi bi-person-plus me-1"></i>New Account
+    </a>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="{{ url_for('admin.users') }}">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>Role</label>
+            <select name="role">
+                <option value="">All Roles</option>
+                <option value="branch_manager" {{ 'selected' if filter_role == 'branch_manager' }}>Branch Manager</option>
+                <option value="qc_admin"       {{ 'selected' if filter_role == 'qc_admin' }}>QC Admin</option>
+                <option value="management"     {{ 'selected' if filter_role == 'management' }}>Management</option>
+                <option value="it_admin"       {{ 'selected' if filter_role == 'it_admin' }}>IT Admin</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Branch</label>
+            <select name="branch_id">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group" style="display:flex;align-items:flex-end;gap:0.5rem;">
+            <button type="submit" class="btn-qc-primary">
+                <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+        </div>
+    </div>
+</form>
+
+<!-- User Table -->
+<div class="qc-card">
+    {% if users %}
+    <div style="overflow-x:auto;">
+        <table class="qc-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email <span style="font-weight:400;color:#adb5bd;">(login)</span></th>
+                    <th>Role</th>
+                    <th>Branch</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="text-align:right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width:34px;height:34px;border-radius:50%;
+                                background:{{ '#4e73df' if u.role == 'it_admin' else '#1cc88a' if u.role == 'qc_admin' else '#f6c23e' if u.role == 'management' else '#36b9cc' }};
+                                display:flex;align-items:center;justify-content:center;
+                                color:#fff;font-weight:700;font-size:0.8rem;flex-shrink:0;">
+                                {{ u.full_name[0].upper() }}
+                            </div>
+                            <strong style="color:#1a2744;">{{ u.full_name }}</strong>
+                        </div>
+                    </td>
+                    <td style="color:#7a869a;font-size:0.83rem;">{{ u.email }}</td>
+                    <td>
+                        <span class="role-badge {{ u.role }}" style="font-size:0.72rem;padding:0.2rem 0.6rem;">
+                            {{ u.role | replace('_', ' ') | title }}
+                        </span>
+                    </td>
+                    <td style="color:#7a869a;font-size:0.85rem;">
+                        {% if u.branch_name %}
+                            <i class="bi bi-building me-1" style="color:#4e73df;"></i>{{ u.branch_name }}
+                        {% else %}
+                            <span style="color:#dee2e6;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                            <span class="status-pill submitted">
+                                <i class="bi bi-check-circle-fill"></i> Active
+                            </span>
+                        {% else %}
+                            <span class="status-pill not-submitted">
+                                <i class="bi bi-x-circle-fill"></i> Inactive
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="color:#7a869a;font-size:0.8rem;">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+                    <td>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="{{ url_for('admin.edit_user', user_id=u.id) }}"
+                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+
+                            {% if u.id != current_user.id %}
+                            <form method="POST"
+                                  action="{{ url_for('admin.toggle_user', user_id=u.id) }}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.full_name }}?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit"
+                                        class="btn btn-sm {{ 'btn-outline-warning' if u.is_active else 'btn-outline-success' }}"
+                                        title="{{ 'Deactivate' if u.is_active else 'Activate' }}">
+                                    <i class="bi {{ 'bi-pause-circle' if u.is_active else 'bi-play-circle' }}"></i>
+                                </button>
+                            </form>
+
+                            <form method="POST"
+                                  action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Permanently delete {{ u.full_name }}? This cannot be undone.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <span style="font-size:0.75rem;color:#dee2e6;padding:0.25rem 0.5rem;">(you)</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-people"></i>
+        <p>No users found. <a href="{{ url_for('admin.create_user') }}">Create one now.</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Role Legend -->
+<div class="d-flex gap-3 mt-3 flex-wrap" style="font-size:0.8rem;color:#7a869a;">
+    <span><span class="role-badge it_admin" style="font-size:0.65rem;">IT Admin</span> — Full system access</span>
+    <span><span class="role-badge qc_admin" style="font-size:0.65rem;">QC Admin</span> — Score, comment, view all</span>
+    <span><span class="role-badge management" style="font-size:0.65rem;">Management</span> — View-only dashboard</span>
+    <span><span class="role-badge branch_manager" style="font-size:0.65rem;">Branch Manager</span> — Submit checklists</span>
+</div>
+{% endblock %}

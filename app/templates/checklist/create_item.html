@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}Add Checklist Item — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-plus-circle me-2" style="color:#4e73df;"></i>Add Checklist Item</h1>
+        <p class="subtitle">Create a new Yes/No question for a daily checklist</p>
+    </div>
+    <a href="{{ url_for('checklist.manage_items') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="qc-card">
+            <div class="card-header-bar">
+                <h5><i class="bi bi-card-text me-2"></i>Item Details</h5>
+            </div>
+            <div class="card-body-pad">
+                <form method="POST" action="{{ url_for('checklist.create_item') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <!-- Item Text -->
+                    <div class="qc-input-group">
+                        <label>Checklist Question / Statement</label>
+                        <textarea name="item_text" rows="3" required
+                                  placeholder="e.g. All food stored at proper temperatures (cold &lt; 5°C, hot &gt; 60°C)"
+                                  style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:0.65rem 0.9rem;font-size:0.9rem;resize:vertical;outline:none;transition:border-color 0.2s;"
+                                  onfocus="this.style.borderColor='#4e73df'"
+                                  onblur="this.style.borderColor='#e2e8f0'">{{ request.form.get('item_text', '') }}</textarea>
+                        <p class="input-hint">Write as a statement that can be answered Yes or No by the branch manager.</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Checklist Type -->
+                        <div class="col-md-8">
+                            <div class="qc-input-group">
+                                <label>Checklist Type</label>
+                                <select name="template_id" id="templateSelect" required
+                                        onchange="updateOrderHint(this.value)">
+                                    <option value="">— Select Type —</option>
+                                    {% for t in templates %}
+                                    <option value="{{ t.id }}"
+                                            data-next="{{ next_order.get(t.id, 1) }}"
+                                        {{ 'selected' if request.form.get('template_id') == t.id|string }}>
+                                        {{ t.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Display Order -->
+                        <div class="col-md-4">
+                            <div class="qc-input-group">
+                                <label>Display Order</label>
+                                <input type="number" name="display_order" id="orderInput"
+                                       value="{{ request.form.get('display_order', '1') }}"
+                                       min="1" placeholder="1">
+                                <p class="input-hint" id="orderHint">Items sorted by this number.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Branch Assignment -->
+                    <div style="background:#f8fafc;border:1px solid #e8ecf2;border-radius:10px;padding:1.25rem;margin-top:0.5rem;">
+                        <label style="font-size:0.8rem;font-weight:700;color:#344054;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:0.75rem;">
+                            <i class="bi bi-building me-1"></i>Branch Assignment
+                        </label>
+
+                        <div class="d-flex gap-4 mb-3">
+                            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.875rem;font-weight:600;">
+                                <input type="radio" name="branch_scope" value="all"
+                                       id="scopeAll"
+                                       {{ 'checked' if request.form.get('branch_scope', 'all') == 'all' }}>
+                                <span>
+                                    <i class="bi bi-globe me-1" style="color:#1cc88a;"></i>
+                                    All Branches
+                                </span>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.875rem;font-weight:600;">
+                                <input type="radio" name="branch_scope" value="specific"
+                                       id="scopeSpecific"
+                                       {{ 'checked' if request.form.get('branch_scope') == 'specific' }}>
+                                <span>
+                                    <i class="bi bi-building me-1" style="color:#4e73df;"></i>
+                                    Specific Branches
+                                </span>
+                            </label>
+                        </div>
+
+                        <!-- Branch checkboxes (shown when "Specific" is selected) -->
+                        <div id="branchCheckboxes"
+                             style="{{ '' if request.form.get('branch_scope') == 'specific' else 'display:none;' }}
+                                    background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.75rem;">
+                            {% if branches %}
+                            <div class="row g-2">
+                                {% for b in branches %}
+                                <div class="col-md-6">
+                                    <label style="display:flex;align-items:center;gap:0.5rem;
+                                                  cursor:pointer;font-size:0.875rem;padding:0.35rem 0.5rem;
+                                                  border-radius:6px;transition:background 0.15s;"
+                                           onmouseover="this.style.background='#f0f4ff'"
+                                           onmouseout="this.style.background='transparent'">
+                                        <input type="checkbox" name="branch_ids" value="{{ b.id }}"
+                                               {{ 'checked' if b.id|string in request.form.getlist('branch_ids') }}>
+                                        <i class="bi bi-building" style="color:#4e73df;"></i>
+                                        {{ b.name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p style="margin:0;font-size:0.82rem;color:#7a869a;">
+                                No branches exist yet. Ask the IT Admin to create branches first.
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        {% if not branches %}
+                        <p style="margin:0.5rem 0 0;font-size:0.78rem;color:#f6c23e;">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            No branches found — item will apply to all branches by default.
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <a href="{{ url_for('checklist.manage_items') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn-qc-primary px-4">
+                            <i class="bi bi-check2 me-1"></i>Save Item
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Show/hide branch checkboxes
+    document.querySelectorAll('input[name="branch_scope"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            const boxes = document.getElementById('branchCheckboxes');
+            boxes.style.display = this.value === 'specific' ? '' : 'none';
+        });
+    });
+
+    // Auto-suggest display order based on selected template
+    function updateOrderHint(templateId) {
+        const select = document.getElementById('templateSelect');
+        const option = select.querySelector(`option[value="${templateId}"]`);
+        const orderInput = document.getElementById('orderInput');
+        const hint = document.getElementById('orderHint');
+
+        if (option) {
+            const next = option.dataset.next || '1';
+            orderInput.value = next;
+            hint.textContent = `Suggested next order: ${next}`;
+        }
+    }
+</script>
+{% endblock %}

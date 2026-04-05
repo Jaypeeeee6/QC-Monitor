@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}Reports — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-bar-chart-line me-2" style="color:#4e73df;"></i>Reports</h1>
+        <p class="subtitle">
+            {{ total_submissions }} submission{{ 's' if total_submissions != 1 }}
+            {% if avg_score is not none %} &mdash; Avg Food Safety Score: <strong>{{ avg_score }}/100</strong>{% endif %}
+        </p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="{{ url_for('dashboard.reports') }}">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>From</label>
+            <input type="date" name="date_from" value="{{ filter_from }}">
+        </div>
+        <div class="filter-group">
+            <label>To</label>
+            <input type="date" name="date_to" value="{{ filter_to }}">
+        </div>
+        <div class="filter-group">
+            <label>Branch</label>
+            <select name="branch_id">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Type</label>
+            <select name="template_id">
+                <option value="">All Types</option>
+                {% for t in templates %}
+                <option value="{{ t.id }}" {{ 'selected' if filter_type == t.id|string }}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group" style="display:flex;align-items:flex-end;">
+            <button type="submit" class="btn-qc-primary">
+                <i class="bi bi-funnel me-1"></i>Apply Filters
+            </button>
+        </div>
+        <div class="filter-group" style="display:flex;align-items:flex-end;">
+            <a href="{{ url_for('dashboard.reports') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+        </div>
+    </div>
+</form>
+
+<!-- Summary Cards -->
+{% if submissions %}
+<div class="row g-3 mb-4">
+    {% set fs_list = submissions | selectattr('template_name', 'equalto', 'Food Safety') | list %}
+    {% set cl_list = submissions | selectattr('template_name', 'equalto', 'Cleaning') | list %}
+    {% set scored = submissions | selectattr('score') | list %}
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card blue">
+            <div class="stat-label">Total Submissions</div>
+            <div class="stat-value">{{ total_submissions }}</div>
+            <div class="stat-sub">{{ filter_from }} – {{ filter_to }}</div>
+            <i class="bi bi-clipboard-check stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card green">
+            <div class="stat-label">Food Safety Submissions</div>
+            <div class="stat-value">{{ fs_list | length }}</div>
+            <div class="stat-sub">in selected period</div>
+            <i class="bi bi-egg-fried stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card teal">
+            <div class="stat-label">Cleaning Submissions</div>
+            <div class="stat-value">{{ cl_list | length }}</div>
+            <div class="stat-sub">in selected period</div>
+            <i class="bi bi-bucket stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card yellow">
+            <div class="stat-label">Avg Food Safety Score</div>
+            <div class="stat-value">{{ avg_score if avg_score else '—' }}</div>
+            <div class="stat-sub">{{ scored | length }} scored</div>
+            <i class="bi bi-star stat-icon"></i>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reports Table -->
+<div class="qc-card">
+    {% if submissions %}
+    <div style="overflow-x:auto;">
+        <table class="qc-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Branch</th>
+                    <th>Type</th>
+                    <th>Submitted By</th>
+                    <th>Time</th>
+                    <th>Compliance</th>
+                    <th>Score</th>
+                    <th>Comments</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                {% set pct = ((sub.yes_count / sub.total) * 100) | round(1) if sub.total else 0 %}
+                <tr class="clickable" data-href="{{ url_for('checklist.view', submission_id=sub.id) }}">
+                    <td><strong>{{ sub.submission_date }}</strong></td>
+                    <td>{{ sub.branch_name }}</td>
+                    <td>
+                        {% if sub.template_name == 'Food Safety' %}
+                            <span style="color:#1cc88a;font-weight:600;font-size:0.82rem;">
+                                <i class="bi bi-egg-fried me-1"></i>Food Safety
+                            </span>
+                        {% else %}
+                            <span style="color:#4e73df;font-weight:600;font-size:0.82rem;">
+                                <i class="bi bi-bucket me-1"></i>Cleaning
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="color:#7a869a;font-size:0.82rem;">{{ sub.submitted_by_name }}</td>
+                    <td style="color:#7a869a;font-size:0.82rem;">{{ sub.submitted_at[11:16] if sub.submitted_at else '—' }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-weight:700;font-size:0.875rem;
+                                color:{{ '#1cc88a' if pct >= 80 else '#f6c23e' if pct >= 60 else '#e74a3b' }};">
+                                {{ pct }}%
+                            </span>
+                            <div class="compliance-bar" style="width:60px;">
+                                <div class="bar-fill {{ 'high' if pct >= 80 else 'medium' if pct >= 60 else 'low' }}"
+                                     style="width:{{ pct }}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if sub.template_name == 'Food Safety' %}
+                            {% if sub.score is not none %}
+                                <span style="font-weight:700;
+                                    color:{{ '#1cc88a' if sub.score >= 90 else '#4e73df' if sub.score >= 75 else '#f6c23e' if sub.score >= 60 else '#e74a3b' }};">
+                                    {{ sub.score }}/100
+                                </span>
+                            {% else %}
+                                <span class="status-pill pending" style="font-size:0.7rem;">Pending</span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color:#dee2e6;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sub.comment_count > 0 %}
+                        <span style="color:#4e73df;font-size:0.82rem;">
+                            <i class="bi bi-chat-dots me-1"></i>{{ sub.comment_count }}
+                        </span>
+                        {% else %}
+                        <span style="color:#dee2e6;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('checklist.view', submission_id=sub.id) }}"
+                           class="btn btn-sm btn-outline-primary"
+                           onclick="event.stopPropagation()">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-search"></i>
+        <p>No submissions found for the selected filters.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

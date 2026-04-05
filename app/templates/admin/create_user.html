@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Create Account — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-person-plus me-2" style="color:#4e73df;"></i>Create New Account</h1>
+        <p class="subtitle">Fill in the details to create a user account</p>
+    </div>
+    <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Users
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="qc-card">
+            <div class="card-header-bar">
+                <h5><i class="bi bi-person-badge me-2"></i>Account Details</h5>
+            </div>
+            <div class="card-body-pad">
+                <form method="POST" action="{{ url_for('admin.create_user') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="qc-input-group">
+                                <label>Full Name</label>
+                                <input type="text" name="full_name"
+                                       value="{{ request.form.get('full_name', '') }}"
+                                       placeholder="e.g. Ahmed Al-Rashid" required>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="qc-input-group">
+                                <label>Email Address <span style="color:#1cc88a;font-size:0.75rem;font-weight:400;">(used to log in)</span></label>
+                                <input type="email" name="email"
+                                       value="{{ request.form.get('email', '') }}"
+                                       placeholder="user@example.com" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="qc-input-group">
+                                <label>Role</label>
+                                <select name="role" id="roleSelect" required>
+                                    <option value="">— Select Role —</option>
+                                    <option value="branch_manager" {{ 'selected' if request.form.get('role') == 'branch_manager' }}>Branch Manager</option>
+                                    <option value="qc_admin"       {{ 'selected' if request.form.get('role') == 'qc_admin' }}>QC Admin</option>
+                                    <option value="management"     {{ 'selected' if request.form.get('role') == 'management' }}>Management (View-only)</option>
+                                    <option value="it_admin"       {{ 'selected' if request.form.get('role') == 'it_admin' }}>IT Admin</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" id="branchGroup"
+                             style="{{ '' if request.form.get('role') == 'branch_manager' else 'display:none;' }}">
+                            <div class="qc-input-group">
+                                <label>Branch</label>
+                                <select name="branch_id" id="branchSelect">
+                                    <option value="">— Select Branch —</option>
+                                    {% for b in branches %}
+                                    <option value="{{ b.id }}"
+                                        {{ 'selected' if request.form.get('branch_id') == b.id|string }}>
+                                        {{ b.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <p class="input-hint">Required for Branch Manager role</p>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="qc-input-group">
+                                <label>Password</label>
+                                <input type="password" name="password"
+                                       placeholder="Min 6 characters" required minlength="6">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="qc-input-group">
+                                <label>Confirm Password</label>
+                                <input type="password" name="confirm_password"
+                                       placeholder="Repeat password" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn-qc-primary px-4">
+                            <i class="bi bi-person-check me-1"></i>Create Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const roleSelect = document.getElementById('roleSelect');
+    const branchGroup = document.getElementById('branchGroup');
+    const branchSelect = document.getElementById('branchSelect');
+
+    roleSelect.addEventListener('change', function () {
+        if (this.value === 'branch_manager') {
+            branchGroup.style.display = '';
+            branchSelect.required = true;
+        } else {
+            branchGroup.style.display = 'none';
+            branchSelect.required = false;
+            branchSelect.value = '';
+        }
+    });
+</script>
+{% endblock %}
