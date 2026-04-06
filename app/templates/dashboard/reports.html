@@ -4,10 +4,10 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="bi bi-bar-chart-line me-2" style="color:#4e73df;"></i>Reports</h1>
+        <h1><i class="bi bi-bar-chart-line me-2" style="color:var(--gold);"></i>Reports</h1>
         <p class="subtitle">
             {{ total_submissions }} submission{{ 's' if total_submissions != 1 }}
-            {% if avg_score is not none %} &mdash; Avg Food Safety Score: <strong>{{ avg_score }}/100</strong>{% endif %}
+            {% if avg_score is not none %} &mdash; Avg QC Score: <strong>{{ avg_score }}/100</strong>{% endif %}
         </p>
     </div>
 </div>
@@ -28,22 +28,16 @@
             <select name="branch_id">
                 <option value="">All Branches</option>
                 {% for b in branches %}
+                {% if loop.changed(b.brand_name) %}
+                <optgroup label="{{ b.brand_name or 'No Brand' }}"></optgroup>
+                {% endif %}
                 <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="filter-group">
-            <label>Type</label>
-            <select name="template_id">
-                <option value="">All Types</option>
-                {% for t in templates %}
-                <option value="{{ t.id }}" {{ 'selected' if filter_type == t.id|string }}>{{ t.name }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="filter-group" style="display:flex;align-items:flex-end;">
             <button type="submit" class="btn-qc-primary">
-                <i class="bi bi-funnel me-1"></i>Apply Filters
+                <i class="bi bi-funnel me-1"></i>Apply
             </button>
         </div>
         <div class="filter-group" style="display:flex;align-items:flex-end;">
@@ -55,10 +49,7 @@
 <!-- Summary Cards -->
 {% if submissions %}
 <div class="row g-3 mb-4">
-    {% set fs_list = submissions | selectattr('template_name', 'equalto', 'Food Safety') | list %}
-    {% set cl_list = submissions | selectattr('template_name', 'equalto', 'Cleaning') | list %}
     {% set scored = submissions | selectattr('score') | list %}
-
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card blue">
             <div class="stat-label">Total Submissions</div>
@@ -69,26 +60,26 @@
     </div>
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card green">
-            <div class="stat-label">Food Safety Submissions</div>
-            <div class="stat-value">{{ fs_list | length }}</div>
-            <div class="stat-sub">in selected period</div>
-            <i class="bi bi-egg-fried stat-icon"></i>
+            <div class="stat-label">Scored</div>
+            <div class="stat-value">{{ scored | length }}</div>
+            <div class="stat-sub">With QC score</div>
+            <i class="bi bi-star stat-icon"></i>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card teal">
-            <div class="stat-label">Cleaning Submissions</div>
-            <div class="stat-value">{{ cl_list | length }}</div>
-            <div class="stat-sub">in selected period</div>
-            <i class="bi bi-bucket stat-icon"></i>
+            <div class="stat-label">Pending Score</div>
+            <div class="stat-value">{{ total_submissions - scored | length }}</div>
+            <div class="stat-sub">Not yet scored</div>
+            <i class="bi bi-hourglass-split stat-icon"></i>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card yellow">
-            <div class="stat-label">Avg Food Safety Score</div>
-            <div class="stat-value">{{ avg_score if avg_score else '—' }}</div>
+            <div class="stat-label">Avg QC Score</div>
+            <div class="stat-value">{{ avg_score if avg_score is not none else '—' }}</div>
             <div class="stat-sub">{{ scored | length }} scored</div>
-            <i class="bi bi-star stat-icon"></i>
+            <i class="bi bi-award stat-icon"></i>
         </div>
     </div>
 </div>
@@ -103,11 +94,10 @@
                 <tr>
                     <th>Date</th>
                     <th>Branch</th>
-                    <th>Type</th>
                     <th>Submitted By</th>
                     <th>Time</th>
                     <th>Compliance</th>
-                    <th>Score</th>
+                    <th>QC Score</th>
                     <th>Comments</th>
                     <th></th>
                 </tr>
@@ -117,17 +107,11 @@
                 {% set pct = ((sub.yes_count / sub.total) * 100) | round(1) if sub.total else 0 %}
                 <tr class="clickable" data-href="{{ url_for('checklist.view', submission_id=sub.id) }}">
                     <td><strong>{{ sub.submission_date }}</strong></td>
-                    <td>{{ sub.branch_name }}</td>
                     <td>
-                        {% if sub.template_name == 'Food Safety' %}
-                            <span style="color:#1cc88a;font-weight:600;font-size:0.82rem;">
-                                <i class="bi bi-egg-fried me-1"></i>Food Safety
-                            </span>
-                        {% else %}
-                            <span style="color:#4e73df;font-weight:600;font-size:0.82rem;">
-                                <i class="bi bi-bucket me-1"></i>Cleaning
-                            </span>
+                        {% if sub.brand_name %}
+                        <span style="font-size:0.72rem;color:#7a869a;">{{ sub.brand_name }}</span><br>
                         {% endif %}
+                        {{ sub.branch_name }}
                     </td>
                     <td style="color:#7a869a;font-size:0.82rem;">{{ sub.submitted_by_name }}</td>
                     <td style="color:#7a869a;font-size:0.82rem;">{{ sub.submitted_at[11:16] if sub.submitted_at else '—' }}</td>
@@ -144,17 +128,13 @@
                         </div>
                     </td>
                     <td>
-                        {% if sub.template_name == 'Food Safety' %}
-                            {% if sub.score is not none %}
-                                <span style="font-weight:700;
-                                    color:{{ '#1cc88a' if sub.score >= 90 else '#4e73df' if sub.score >= 75 else '#f6c23e' if sub.score >= 60 else '#e74a3b' }};">
-                                    {{ sub.score }}/100
-                                </span>
-                            {% else %}
-                                <span class="status-pill pending" style="font-size:0.7rem;">Pending</span>
-                            {% endif %}
+                        {% if sub.score is not none %}
+                            <span style="font-weight:700;
+                                color:{{ '#1cc88a' if sub.score >= 90 else '#4e73df' if sub.score >= 75 else '#f6c23e' if sub.score >= 60 else '#e74a3b' }};">
+                                {{ sub.score }}/100
+                            </span>
                         {% else %}
-                            <span style="color:#dee2e6;">—</span>
+                            <span class="status-pill pending" style="font-size:0.7rem;">Pending</span>
                         {% endif %}
                     </td>
                     <td>

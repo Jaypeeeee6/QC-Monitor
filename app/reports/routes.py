@@ -1,6 +1,5 @@
 import os
 import uuid
-from datetime import date
 from flask import (render_template, request, redirect, url_for,
                    flash, abort, current_app)
 from flask_login import login_required, current_user
@@ -8,7 +7,7 @@ from werkzeug.utils import secure_filename
 
 from app.reports import reports_bp
 from app.db import get_db
-from app.utils import role_required
+from app.utils import role_required, local_today, local_now_str
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +49,7 @@ def inbox():
     db = get_db()
 
     if current_user.role == 'branch_manager':
-        today = date.today().isoformat()
+        today = local_today()
         reports = db.execute(
             '''SELECT dr.*, b.name as branch_name, u.full_name as sender_name,
                       (SELECT COUNT(*) FROM report_replies rr WHERE rr.report_id = dr.id) as reply_count
@@ -114,7 +113,7 @@ def inbox():
 @role_required('branch_manager')
 def compose():
     db = get_db()
-    today = date.today().isoformat()
+    today = local_today()
 
     qc_admins = db.execute(
         '''SELECT full_name, email FROM users
@@ -162,9 +161,9 @@ def compose():
                                    qc_admins=qc_admins)
 
         cursor = db.execute(
-            '''INSERT INTO daily_reports (branch_id, submitted_by, subject, body, report_date)
-               VALUES (?, ?, ?, ?, ?)''',
-            (current_user.branch_id, current_user.id, subject, body, report_date)
+            '''INSERT INTO daily_reports (branch_id, submitted_by, subject, body, report_date, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            (current_user.branch_id, current_user.id, subject, body, report_date, local_now_str())
         )
         report_id = cursor.lastrowid
 
@@ -269,8 +268,8 @@ def reply(report_id):
         return redirect(url_for('reports.view', report_id=report_id))
 
     cursor = db.execute(
-        'INSERT INTO report_replies (report_id, user_id, body) VALUES (?, ?, ?)',
-        (report_id, current_user.id, body)
+        'INSERT INTO report_replies (report_id, user_id, body, created_at) VALUES (?, ?, ?, ?)',
+        (report_id, current_user.id, body, local_now_str())
     )
     reply_id = cursor.lastrowid
 

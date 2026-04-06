@@ -1,468 +1,350 @@
 {% extends 'base.html' %}
-{% block title %}Manage Checklist Items — QC Monitor{% endblock %}
+{% block title %}Manage Checklists{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1><i class="bi bi-ui-checks me-2" style="color:var(--gold);"></i>Checklist Items</h1>
-        <p class="subtitle">Build the daily checklist templates used by Branch Managers</p>
-    </div>
-</div>
-
-<!-- Filter bar -->
-<form method="GET" action="{{ url_for('checklist.manage_items') }}" class="filter-bar mb-4">
-    <div class="filter-group">
-        <label class="filter-label"><i class="bi bi-grid me-1"></i>Type</label>
-        <select name="template_id" class="filter-select" onchange="this.form.submit()">
-            <option value="">All Types</option>
-            {% for t in templates %}
-            <option value="{{ t.id }}" {{ 'selected' if filter_template == t.id|string }}>{{ t.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="filter-group">
-        <label class="filter-label"><i class="bi bi-building me-1"></i>Branch</label>
-        <select name="branch_id" class="filter-select" onchange="this.form.submit()">
-            <option value="">All Branches</option>
-            {% for b in branches %}
-            <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="filter-group">
-        <label class="filter-label"><i class="bi bi-toggle-on me-1"></i>Status</label>
-        <select name="status" class="filter-select" onchange="this.form.submit()">
-            <option value="all"    {{ 'selected' if filter_status == 'all' }}>All</option>
-            <option value="active" {{ 'selected' if filter_status == 'active' or not filter_status }}>Active only</option>
-            <option value="inactive" {{ 'selected' if filter_status == 'inactive' }}>Inactive only</option>
-        </select>
-    </div>
-    {% if filter_template or filter_branch or filter_status not in ('', 'active') %}
-    <div class="filter-actions" style="align-self:flex-end;">
-        <a href="{{ url_for('checklist.manage_items') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-x-circle me-1"></i>Clear
-        </a>
-    </div>
-    {% endif %}
-</form>
-
-<!-- Checklist table -->
-<div class="qc-card" style="overflow:hidden;">
-
-    <div style="background:var(--dark-bg);padding:0.65rem 1.25rem;border-bottom:2px solid var(--gold-dark);
-                display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.5);
-                     text-transform:uppercase;letter-spacing:0.07em;">
-            <i class="bi bi-list-check me-1" style="color:var(--gold);"></i>
-            {{ items|length }} item{{ 's' if items|length != 1 }}
-            {% if filter_template or filter_branch %}&nbsp;(filtered){% endif %}
-        </span>
-        <span style="font-size:0.72rem;color:rgba(255,255,255,0.3);">
-            Click a description to edit it inline
-        </span>
-    </div>
-
-    <div style="overflow-x:auto;">
-        <table class="mi-table">
-            <thead>
-                <tr>
-                    <th class="mi-th-no">No</th>
-                    <th class="mi-th-desc">Description</th>
-                    <th class="mi-th-meta">Type</th>
-                    <th class="mi-th-meta">Branches</th>
-                    <th class="mi-th-status">Status</th>
-                    <th class="mi-th-actions"></th>
-                </tr>
-            </thead>
-            <tbody id="itemsBody">
-
-            {% if not items %}
-            <tr>
-                <td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.85rem;">
-                    <i class="bi bi-clipboard-x" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
-                    No items found. Add one below.
-                </td>
-            </tr>
-            {% endif %}
-
-            {% for item in items %}
-            <tr class="mi-row {{ 'mi-inactive' if not item.is_active }}" data-item-id="{{ item.id }}">
-
-                <td class="mi-td-no">{{ loop.index }}</td>
-
-                <!-- Editable description -->
-                <td class="mi-td-desc">
-                    <span class="mi-text-display" title="Click to edit">{{ item.item_text }}</span>
-                    <form class="mi-edit-form" method="POST"
-                          action="{{ url_for('checklist.edit_item', item_id=item.id) }}"
-                          style="display:none;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="template_id" value="{{ item.template_id }}">
-                        <input type="hidden" name="display_order" value="{{ item.display_order }}">
-                        <input type="hidden" name="branch_scope"
-                               value="{{ 'specific' if item.branch_count > 0 else 'all' }}">
-                        <input class="mi-edit-input" type="text" name="item_text"
-                               value="{{ item.item_text }}" required>
-                        <div class="mi-edit-actions">
-                            <button type="submit" class="mi-btn-save">
-                                <i class="bi bi-check-lg"></i> Save
-                            </button>
-                            <button type="button" class="mi-btn-cancel">
-                                <i class="bi bi-x-lg"></i> Cancel
-                            </button>
-                        </div>
-                    </form>
-                </td>
-
-                <td class="mi-td-meta">
-                    <span class="mi-type-badge {{ 'food' if item.template_name == 'Food Safety' else 'clean' }}">
-                        {% if item.template_name == 'Food Safety' %}
-                            <i class="bi bi-egg-fried me-1"></i>
-                        {% else %}
-                            <i class="bi bi-bucket me-1"></i>
-                        {% endif %}
-                        {{ item.template_name }}
-                    </span>
-                </td>
-
-                <td class="mi-td-meta">
-                    {% if item.branch_count == 0 %}
-                        <span class="mi-scope-all"><i class="bi bi-globe me-1"></i>All</span>
-                    {% else %}
-                        <span class="mi-scope-specific" title="{{ item.branch_names }}">
-                            <i class="bi bi-building me-1"></i>{{ item.branch_count }} branch{{ 'es' if item.branch_count != 1 }}
-                        </span>
-                    {% endif %}
-                </td>
-
-                <td class="mi-td-status">
-                    <form method="POST" action="{{ url_for('checklist.toggle_item', item_id=item.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="mi-toggle-btn {{ 'active' if item.is_active else 'inactive' }}"
-                                title="{{ 'Click to deactivate' if item.is_active else 'Click to activate' }}">
-                            {{ 'Active' if item.is_active else 'Inactive' }}
-                        </button>
-                    </form>
-                </td>
-
-                <td class="mi-td-actions">
-                    <button type="button" class="mi-icon-btn edit-trigger"
-                            title="Edit" data-item-id="{{ item.id }}">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <a href="{{ url_for('checklist.edit_item', item_id=item.id) }}"
-                       class="mi-icon-btn" title="Full Edit (branches etc.)">
-                        <i class="bi bi-sliders"></i>
-                    </a>
-                    <form method="POST" action="{{ url_for('checklist.delete_item', item_id=item.id) }}"
-                          style="display:inline;" onsubmit="return confirm('Delete this item?')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="mi-icon-btn danger" title="Delete">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-
-            <!-- ===== Inline Add Row ===== -->
-            <tr class="mi-add-row" id="addRow">
-                <td class="mi-td-no" style="color:var(--gold);font-size:1rem;">
-                    <i class="bi bi-plus-circle-fill"></i>
-                </td>
-                <td class="mi-td-desc" colspan="1">
-                    <form id="inlineAddForm" method="POST"
-                          action="{{ url_for('checklist.create_item') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="display_order" value="0">
-                        <input type="hidden" name="branch_scope" value="all">
-                        <input type="text" id="addItemText" name="item_text"
-                               class="mi-add-input"
-                               placeholder="Type new checklist item and press Enter or click Add…"
-                               autocomplete="off" maxlength="300">
-                    </form>
-                </td>
-                <td class="mi-td-meta">
-                    <select name="template_id" form="inlineAddForm" class="mi-add-select" required>
-                        <option value="">Type…</option>
-                        {% for t in templates %}
-                        <option value="{{ t.id }}"
-                                {{ 'selected' if filter_template == t.id|string }}>
-                            {{ t.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td class="mi-td-meta">
-                    <select name="branch_scope" form="inlineAddForm" class="mi-add-select"
-                            id="branchScopeSelect" onchange="toggleBranchSelect(this)">
-                        <option value="all">All Branches</option>
-                        <option value="specific">Specific…</option>
-                    </select>
-                </td>
-                <td class="mi-td-status" id="branchPickerCell" style="display:none;">
-                    <select name="branch_ids" form="inlineAddForm" class="mi-add-select" multiple
-                            style="height:60px;min-width:130px;">
-                        {% for b in branches %}
-                        <option value="{{ b.id }}">{{ b.name }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td class="mi-td-actions">
-                    <button type="submit" form="inlineAddForm" class="mi-icon-btn add">
-                        <i class="bi bi-plus-lg"></i> Add
-                    </button>
-                </td>
-            </tr>
-
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Legend -->
-<div class="d-flex align-items-center gap-4 mt-3" style="font-size:0.75rem;color:var(--text-muted);">
-    <span><i class="bi bi-pencil me-1"></i>Click description or pencil to edit inline</span>
-    <span><i class="bi bi-sliders me-1"></i>Sliders icon = full edit (branch assignment etc.)</span>
-    <span><i class="bi bi-globe me-1"></i>All = visible to every branch</span>
-</div>
-{% endblock %}
-
-{% block scripts %}
 <style>
-/* Filter bar (reused) */
-.filter-bar {
-    display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap;
-    padding: 1rem 1.25rem;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-}
-.filter-group { display: flex; flex-direction: column; gap: 4px; }
-.filter-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.filter-select {
-    height: 36px; padding: 0 0.65rem;
-    border: 1px solid var(--border-color); border-radius: 8px;
-    background: var(--body-bg); color: var(--text-dark); font-size: 0.82rem;
-    cursor: pointer; min-width: 150px;
-}
-.filter-select:focus { outline: none; border-color: var(--gold); }
+/* ── layout ── */
+.cl-layout{display:flex;gap:1.25rem;align-items:flex-start;min-height:70vh}
+.cl-sidebar{width:220px;flex-shrink:0;position:sticky;top:1rem}
+.cl-main{flex:1;min-width:0}
 
-/* Main table */
-.mi-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.mi-table thead tr {
-    background: var(--gold-pale);
-    border-bottom: 2px solid var(--gold-dark);
-}
-.mi-table thead th {
-    padding: 0.6rem 0.85rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--text-dark);
-    white-space: nowrap;
-}
-.mi-th-no     { width: 48px; text-align: center; }
-.mi-th-desc   { min-width: 260px; }
-.mi-th-meta   { width: 140px; }
-.mi-th-status { width: 100px; text-align: center; }
-.mi-th-actions { width: 110px; text-align: center; }
+/* ── branch list ── */
+.branch-list{background:#fff;border:1px solid #e6ddc8;border-radius:10px;overflow:hidden;
+  box-shadow:0 1px 5px rgba(0,0,0,.05)}
+.branch-list-head{background:var(--dark-bg);color:var(--gold);font-size:.75rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;padding:.6rem 1rem;border-bottom:2px solid var(--gold)}
+.branch-item{display:block;padding:.6rem 1rem;font-size:.875rem;color:#444;text-decoration:none;
+  border-bottom:1px solid #f0ebe0;transition:background .1s}
+.branch-item:hover{background:var(--gold-pale);color:var(--gold-deeper)}
+.branch-item.active{background:var(--gold);color:var(--dark-bg);font-weight:700}
+.branch-item:last-child{border-bottom:none}
 
-.mi-row { border-bottom: 1px solid var(--border-color); transition: background 0.12s; }
-.mi-row:hover { background: rgba(217,189,125,0.05); }
-.mi-inactive { opacity: 0.5; }
+/* ── top bar ── */
+.cl-topbar{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:1.2rem;gap:1rem;flex-wrap:wrap}
+.cl-topbar h2{font-size:1.2rem;font-weight:800;color:var(--gold-deeper);margin:0}
+.cl-add-sec-btn{background:var(--gold);color:var(--dark-bg);border:none;border-radius:8px;
+  padding:.45rem 1rem;font-size:.85rem;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;gap:.4rem}
+.cl-add-sec-btn:hover{background:var(--gold-dark)}
 
-.mi-td-no {
-    padding: 0.65rem 0.85rem;
-    text-align: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    vertical-align: middle;
-}
-.mi-td-desc {
-    padding: 0.65rem 0.85rem;
-    vertical-align: middle;
-}
-.mi-td-meta {
-    padding: 0.65rem 0.85rem;
-    vertical-align: middle;
-}
-.mi-td-status {
-    padding: 0.65rem 0.85rem;
-    text-align: center;
-    vertical-align: middle;
-}
-.mi-td-actions {
-    padding: 0.5rem 0.85rem;
-    text-align: center;
-    vertical-align: middle;
-    white-space: nowrap;
-}
+/* ── add-section panel ── */
+.add-sec-panel{display:none;background:var(--gold-pale);border:1px solid var(--gold);
+  border-radius:10px;padding:.9rem 1.1rem;margin-bottom:1.1rem}
+.add-sec-panel.open{display:block}
+.add-sec-panel label{font-size:.8rem;font-weight:600;color:var(--gold-deeper);display:block;margin-bottom:.2rem}
+.add-sec-panel input{width:100%;border:1px solid #c9b98a;border-radius:6px;
+  padding:.38rem .65rem;font-size:.88rem;background:#fff;margin-bottom:.65rem}
+.add-sec-panel input:focus{outline:none;border-color:var(--gold)}
+.add-sec-panel .pa{display:flex;gap:.5rem}
+.add-sec-panel .pa .btn-ok{background:var(--gold);color:var(--dark-bg);border:none;
+  border-radius:6px;padding:.38rem .9rem;font-size:.83rem;font-weight:700;cursor:pointer}
+.add-sec-panel .pa .btn-ok:hover{background:var(--gold-dark)}
+.add-sec-panel .pa .btn-no{background:none;border:1px solid #ccc;border-radius:6px;
+  padding:.38rem .8rem;font-size:.83rem;cursor:pointer;color:#666}
 
-/* Inline text display */
-.mi-text-display {
-    font-size: 0.875rem;
-    color: var(--text-dark);
-    cursor: pointer;
-    display: block;
-    padding: 2px 4px;
-    border-radius: 4px;
-    border: 1px solid transparent;
-    transition: border-color 0.15s, background 0.15s;
-}
-.mi-text-display:hover {
-    border-color: var(--gold-dark);
-    background: var(--gold-light);
-}
+/* ── section card ── */
+.cl-section-card{background:#fff;border:1px solid #e6ddc8;border-radius:10px;
+  margin-bottom:.9rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.cl-sec-head{background:var(--dark-bg);padding:.6rem 1rem;display:flex;align-items:center;
+  gap:.5rem;border-bottom:2px solid var(--gold)}
+.cl-sec-head-name{font-weight:700;font-size:.9rem;color:var(--gold);flex:1}
+.cl-sec-input{display:none;flex:1;background:rgba(255,255,255,.1);border:1px solid var(--gold);
+  border-radius:4px;padding:.18rem .5rem;font-size:.88rem;color:#fff;font-weight:600}
+.sa{background:none;border:none;padding:.18rem .4rem;border-radius:4px;cursor:pointer;
+  font-size:.73rem;font-weight:600;color:rgba(255,255,255,.6)}
+.sa:hover{background:rgba(255,255,255,.12);color:#fff}
+.sa.red{color:#fca5a5}.sa.red:hover{background:rgba(239,68,68,.15)}
+.sa.green{display:none;color:#86efac}.sa.green:hover{background:rgba(34,197,94,.12)}
+.sa.grey{display:none;color:rgba(255,255,255,.45)}
 
-/* Inline edit form */
-.mi-edit-form { display: none; }
-.mi-edit-input {
-    width: 100%;
-    border: 1.5px solid var(--gold);
-    border-radius: 6px;
-    padding: 0.35rem 0.6rem;
-    font-size: 0.875rem;
-    outline: none;
-    background: var(--body-bg);
-    color: var(--text-dark);
-    margin-bottom: 0.3rem;
-}
-.mi-edit-actions { display: flex; gap: 0.4rem; margin-top: 0.2rem; }
-.mi-btn-save {
-    font-size: 0.75rem; padding: 3px 10px;
-    background: var(--gold); color: #fff;
-    border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
-}
-.mi-btn-save:hover { background: var(--gold-dark); }
-.mi-btn-cancel {
-    font-size: 0.75rem; padding: 3px 10px;
-    background: transparent; color: var(--text-muted);
-    border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;
-}
+/* ── items table ── */
+.cl-tbl{width:100%;border-collapse:collapse;font-size:.875rem}
+.cl-tbl thead th{background:var(--gold-pale);padding:.42rem .9rem;text-align:left;
+  font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--gold-deeper);border-bottom:1px solid #e6ddc8}
+.cl-tbl thead th:first-child{width:40px;text-align:center}
+.cl-tbl thead th:last-child{width:105px;text-align:center}
+.cl-tbl tbody tr{border-bottom:1px solid #f0ebe0}
+.cl-tbl tbody tr:last-child{border-bottom:none}
+.cl-tbl tbody tr:hover{background:#fdf9f2}
+.cl-tbl td{padding:.48rem .9rem;vertical-align:middle}
+.cl-tbl td:first-child{text-align:center;color:#ccc;font-size:.76rem;font-weight:700}
+.cl-tbl td:last-child{text-align:center;white-space:nowrap}
 
-/* Badges */
-.mi-type-badge {
-    font-size: 0.72rem; font-weight: 600;
-    padding: 3px 9px; border-radius: 20px;
-    display: inline-flex; align-items: center;
-    white-space: nowrap;
-}
-.mi-type-badge.food { background: rgba(251,191,36,0.15); color: #b45309; }
-.mi-type-badge.clean { background: rgba(99,179,237,0.15); color: #1e6fa8; }
-.mi-scope-all { font-size: 0.72rem; color: #16a34a; font-weight: 600; }
-.mi-scope-specific { font-size: 0.72rem; color: #2563eb; font-weight: 600; cursor: help; }
+/* inactive */
+.row-off td{opacity:.5}
+.row-off .idsp{text-decoration:line-through;color:#aaa;cursor:default!important}
+.inactive-pip{font-size:.67rem;background:#fde8e8;color:#c62828;border-radius:3px;
+  padding:.08rem .32rem;font-weight:600;margin-left:.3rem;vertical-align:middle}
 
-/* Toggle button */
-.mi-toggle-btn {
-    font-size: 0.7rem; font-weight: 700;
-    padding: 3px 10px; border-radius: 20px; border: none; cursor: pointer;
-}
-.mi-toggle-btn.active { background: rgba(34,197,94,0.15); color: #15803d; }
-.mi-toggle-btn.inactive { background: rgba(239,68,68,0.12); color: #dc2626; }
+/* inline item edit */
+.idsp{cursor:pointer;color:#1a2744}
+.idsp:hover{color:var(--gold-deeper);text-decoration:underline dotted}
+.iinp{display:none;width:100%;border:1px solid var(--gold);border-radius:4px;
+  padding:.2rem .42rem;font-size:.85rem}
+.bi-btn{background:none;border:none;padding:.17rem .36rem;border-radius:4px;
+  cursor:pointer;font-size:.73rem;font-weight:600}
+.bi-edit{color:var(--gold-deeper)}.bi-edit:hover{background:var(--gold-pale)}
+.bi-save{display:none;color:#15803d}.bi-save:hover{background:#f0fdf4}
+.bi-cancel{display:none;color:#888}.bi-cancel:hover{background:#f5f5f5}
 
-/* Icon buttons */
-.mi-icon-btn {
-    width: 30px; height: 30px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-mid);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 0.8rem; cursor: pointer;
-    text-decoration: none;
-    transition: all 0.12s;
-    margin: 0 1px;
-}
-.mi-icon-btn:hover { background: var(--gold-light); border-color: var(--gold); color: var(--gold-deeper); }
-.mi-icon-btn.danger:hover { background: rgba(239,68,68,0.1); border-color: #ef4444; color: #ef4444; }
-.mi-icon-btn.add {
-    width: auto; padding: 0 10px; gap: 4px;
-    background: var(--gold); border-color: var(--gold); color: #fff; font-weight: 600;
-}
-.mi-icon-btn.add:hover { background: var(--gold-dark); }
+/* add-item row */
+.add-row td{background:#fafaf8;padding:.38rem .75rem}
+.add-form{display:flex;gap:.45rem;align-items:center}
+.add-inp{border:1px solid #d4c99a;border-radius:6px;padding:.28rem .55rem;
+  font-size:.83rem;flex:1;min-width:140px}
+.add-inp:focus{outline:none;border-color:var(--gold)}
+.add-btn{background:var(--gold);color:var(--dark-bg);border:none;border-radius:6px;
+  padding:.28rem .8rem;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.add-btn:hover{background:var(--gold-dark)}
 
-/* Add row */
-.mi-add-row {
-    background: rgba(217,189,125,0.04);
-    border-top: 2px dashed var(--gold-dark);
-}
-.mi-add-input {
-    width: 100%;
-    border: 1.5px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.4rem 0.65rem;
-    font-size: 0.875rem;
-    outline: none;
-    background: var(--body-bg);
-    color: var(--text-dark);
-    transition: border-color 0.15s;
-}
-.mi-add-input:focus { border-color: var(--gold); }
-.mi-add-input::placeholder { color: var(--text-muted); font-size: 0.8rem; }
-.mi-add-select {
-    width: 100%;
-    border: 1.5px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.4rem 0.5rem;
-    font-size: 0.78rem;
-    outline: none;
-    background: var(--body-bg);
-    color: var(--text-dark);
-    cursor: pointer;
-}
-.mi-add-select:focus { border-color: var(--gold); }
+/* empty state */
+.cl-empty{text-align:center;padding:3rem 1rem;color:#bbb}
+.cl-empty i{font-size:2.2rem;display:block;margin-bottom:.6rem}
+
+/* no-branch selected */
+.no-branch{text-align:center;padding:4rem 1rem;color:#bbb}
+.no-branch i{font-size:2.5rem;display:block;margin-bottom:.7rem}
 </style>
 
+<div class="cl-layout">
+
+  {# ── Branch sidebar ── #}
+  <div class="cl-sidebar">
+    <div class="branch-list">
+      <div class="branch-list-head">Branches</div>
+      {% if branches %}
+        {# Group by brand #}
+        {% set seen_brands = [] %}
+        {% for b in branches %}
+          {% set brand = b.brand_name or 'No Brand' %}
+          {% if brand not in seen_brands %}
+            {% set _ = seen_brands.append(brand) %}
+            <div style="padding:.3rem .9rem .1rem;font-size:.68rem;font-weight:700;
+                        text-transform:uppercase;letter-spacing:.05em;color:#aaa;
+                        margin-top:{{ '0' if loop.first else '.25rem' }}">
+              {{ brand }}
+            </div>
+          {% endif %}
+          <a href="{{ url_for('checklist.manage_items', branch_id=b.id) }}"
+             class="branch-item {{ 'active' if b.id == selected_branch_id }}"
+             style="padding-left:1.4rem">
+            <i class="bi bi-building me-1"></i>{{ b.name }}
+          </a>
+        {% endfor %}
+      {% else %}
+        <div style="padding:.75rem 1rem;font-size:.82rem;color:#aaa;font-style:italic">No branches yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Main area ── #}
+  <div class="cl-main">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+          {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if selected_branch %}
+    <div class="cl-topbar">
+      <h2><i class="bi bi-building me-1" style="color:var(--gold)"></i>{{ selected_branch.name }}</h2>
+      <button class="cl-add-sec-btn" onclick="togglePanel()">+ Add Section</button>
+    </div>
+
+    {# ── Add-section panel ── #}
+    <div class="add-sec-panel" id="add-panel">
+      <form method="POST" action="{{ url_for('checklist.create_section') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="template_id" value="{{ template_id }}">
+        <input type="hidden" name="branch_id" value="{{ selected_branch_id }}">
+        <label>Section Name</label>
+        <input type="text" name="name" placeholder="e.g. Dining Area / Guest Seating" required autofocus>
+        <div class="pa">
+          <button type="submit" class="btn-ok">Add Section</button>
+          <button type="button" class="btn-no" onclick="togglePanel()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    {# ── Sections ── #}
+    {% if sections_data %}
+      {% for sec_entry in sections_data %}
+      {% set sec = sec_entry['section'] %}
+      <div class="cl-section-card" id="sec-{{ sec.id }}">
+
+        <div class="cl-sec-head">
+          <span class="cl-sec-head-name" id="sname-{{ sec.id }}">{{ sec.name }}</span>
+          <input type="text" class="cl-sec-input" id="sinp-{{ sec.id }}" value="{{ sec.name }}">
+
+          <button class="sa" id="sedit-{{ sec.id }}" onclick="startRen({{ sec.id }})">✏ Rename</button>
+          <button class="sa green" id="ssave-{{ sec.id }}" onclick="saveRen({{ sec.id }})">✔ Save</button>
+          <button class="sa grey" id="scancel-{{ sec.id }}" onclick="cancelRen({{ sec.id }})">✖</button>
+
+          <form method="POST" action="{{ url_for('checklist.delete_section', section_id=sec.id) }}"
+                style="margin:0" onsubmit="return confirmDelSec('{{ sec.name }}', {{ sec_entry['items']|length }})">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="sa red">🗑 Delete</button>
+          </form>
+
+          <form method="POST" action="{{ url_for('checklist.edit_section', section_id=sec.id) }}"
+                id="sform-{{ sec.id }}" style="display:none">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="name" id="sformname-{{ sec.id }}">
+          </form>
+        </div>
+
+        <table class="cl-tbl">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Description</th>
+              <th style="width:65px;text-align:center">Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if sec_entry['items'] %}
+              {% for item in sec_entry['items'] %}
+              <tr {% if not item.is_active %}class="row-off"{% endif %}>
+                <td>{{ loop.index }}</td>
+                <td>
+                  <span class="idsp" id="itxt-{{ item.id }}"
+                        {% if item.is_active %}onclick="startEdit({{ item.id }})"{% endif %}>
+                    {{ item.item_text }}
+                  </span>
+                  {% if not item.is_active %}<span class="inactive-pip">Off</span>{% endif %}
+                  {% if item.is_active %}
+                  <input type="text" class="iinp" id="iinp-{{ item.id }}" value="{{ item.item_text }}">
+                  {% endif %}
+                </td>
+                <td style="text-align:center">
+                  <form method="POST" action="{{ url_for('checklist.toggle_item', item_id=item.id) }}" style="margin:0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="bi-btn" title="{{ 'Deactivate' if item.is_active else 'Activate' }}"
+                            style="font-size:.88rem">{{ '🟢' if item.is_active else '🔴' }}</button>
+                  </form>
+                </td>
+                <td>
+                  {% if item.is_active %}
+                  <button class="bi-btn bi-edit" id="iedit-{{ item.id }}" onclick="startEdit({{ item.id }})">✏ Edit</button>
+                  <button class="bi-btn bi-save" id="isave-{{ item.id }}" onclick="saveEdit({{ item.id }})">✔</button>
+                  <button class="bi-btn bi-cancel" id="icancel-{{ item.id }}" onclick="cancelEdit({{ item.id }})">✖</button>
+                  <form method="POST" action="{{ url_for('checklist.edit_item', item_id=item.id) }}"
+                        id="iform-{{ item.id }}" style="display:none">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="item_text" id="iformtxt-{{ item.id }}">
+                  </form>
+                  {% else %}
+                  <span style="font-size:.72rem;color:#ccc;font-style:italic">activate to edit</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="4" style="text-align:center;color:#ccc;font-style:italic;padding:.7rem">
+                No items — add one below.
+              </td></tr>
+            {% endif %}
+          </tbody>
+          <tfoot>
+            <tr class="add-row">
+              <td colspan="4">
+                <form method="POST" action="{{ url_for('checklist.create_item') }}" class="add-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="template_id" value="{{ template_id }}">
+                  <input type="hidden" name="section_id" value="{{ sec.id }}">
+                  <input type="hidden" name="branch_scope" value="all">
+                  <input type="hidden" name="branch_id_redirect" value="{{ selected_branch_id }}">
+                  <input type="text" name="item_text" class="add-inp"
+                         placeholder="Add checklist item…" required>
+                  <button type="submit" class="add-btn">+ Add</button>
+                </form>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="cl-empty">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+        No sections yet for <strong>{{ selected_branch.name }}</strong>.<br>
+        Click <strong style="color:var(--gold-deeper)">+ Add Section</strong> to create the first one.
+      </div>
+    {% endif %}
+
+    {% else %}
+    <div class="no-branch">
+      <i class="bi bi-arrow-left-circle"></i>
+      Select a branch to manage its checklist.
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
 <script>
-// Inline edit toggle
-document.querySelectorAll('.mi-text-display').forEach(function (span) {
-    span.addEventListener('click', function () { activateEdit(this.closest('tr')); });
-});
-document.querySelectorAll('.edit-trigger').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-        var row = document.querySelector('.mi-row[data-item-id="' + this.dataset.itemId + '"]');
-        if (row) activateEdit(row);
-    });
-});
-
-function activateEdit(row) {
-    var display = row.querySelector('.mi-text-display');
-    var form    = row.querySelector('.mi-edit-form');
-    var input   = row.querySelector('.mi-edit-input');
-    if (!display || !form) return;
-    display.style.display = 'none';
-    form.style.display = 'block';
-    if (input) { input.focus(); input.select(); }
+function togglePanel() {
+  const p = document.getElementById('add-panel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) p.querySelector('input[name="name"]').focus();
 }
 
-document.querySelectorAll('.mi-btn-cancel').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-        var form    = this.closest('.mi-edit-form');
-        var display = form.parentElement.querySelector('.mi-text-display');
-        form.style.display = 'none';
-        if (display) display.style.display = '';
-    });
-});
-
-// Branch scope toggle in add row
-function toggleBranchSelect(sel) {
-    var cell = document.getElementById('branchPickerCell');
-    if (!cell) return;
-    cell.style.display = sel.value === 'specific' ? '' : 'none';
+/* Section rename */
+function startRen(id) {
+  document.getElementById('sname-' + id).style.display = 'none';
+  document.getElementById('sinp-' + id).style.display = 'block';
+  document.getElementById('sinp-' + id).focus();
+  document.getElementById('sedit-' + id).style.display = 'none';
+  document.getElementById('ssave-' + id).style.display = 'inline-block';
+  document.getElementById('scancel-' + id).style.display = 'inline-block';
+}
+function cancelRen(id) {
+  document.getElementById('sname-' + id).style.display = '';
+  document.getElementById('sinp-' + id).style.display = 'none';
+  document.getElementById('sedit-' + id).style.display = '';
+  document.getElementById('ssave-' + id).style.display = 'none';
+  document.getElementById('scancel-' + id).style.display = 'none';
+}
+function saveRen(id) {
+  const v = document.getElementById('sinp-' + id).value.trim();
+  if (!v) { alert('Name cannot be empty.'); return; }
+  document.getElementById('sformname-' + id).value = v;
+  document.getElementById('sform-' + id).submit();
 }
 
-// Press Enter in add input to submit
-document.getElementById('addItemText').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('inlineAddForm').submit();
-    }
-});
+/* Item inline edit */
+function startEdit(id) {
+  document.getElementById('itxt-' + id).style.display = 'none';
+  document.getElementById('iinp-' + id).style.display = 'block';
+  document.getElementById('iinp-' + id).focus();
+  document.getElementById('iedit-' + id).style.display = 'none';
+  document.getElementById('isave-' + id).style.display = 'inline-block';
+  document.getElementById('icancel-' + id).style.display = 'inline-block';
+}
+function cancelEdit(id) {
+  document.getElementById('itxt-' + id).style.display = '';
+  document.getElementById('iinp-' + id).style.display = 'none';
+  document.getElementById('iedit-' + id).style.display = '';
+  document.getElementById('isave-' + id).style.display = 'none';
+  document.getElementById('icancel-' + id).style.display = 'none';
+}
+function saveEdit(id) {
+  const v = document.getElementById('iinp-' + id).value.trim();
+  if (!v) { alert('Item cannot be empty.'); return; }
+  document.getElementById('iformtxt-' + id).value = v;
+  document.getElementById('iform-' + id).submit();
+}
+
+function confirmDelSec(name, count) {
+  if (count > 0)
+    return confirm('Delete section "' + name + '"?\nIt has ' + count + ' item(s) — deactivate them first.');
+  return confirm('Delete section "' + name + '"?');
+}
 </script>
 {% endblock %}

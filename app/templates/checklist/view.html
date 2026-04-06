@@ -9,8 +9,7 @@
             Submission Details
         </h1>
         <p class="subtitle">
-            {{ submission.branch_name }} &mdash; {{ submission.template_name }} &mdash;
-            {{ submission.submission_date }}
+            {{ submission.branch_name }} &mdash; {{ submission.submission_date }}
         </p>
     </div>
     <div class="d-flex gap-2">
@@ -67,35 +66,57 @@
                     </div>
                 </div>
 
-                <!-- Individual Responses -->
-                {% for resp in responses %}
-                <div class="response-row">
-                    <span class="item-number" style="display:inline-flex;align-items:center;justify-content:center;
-                        width:24px;height:24px;background:#f0f4ff;color:#4e73df;border-radius:50%;
-                        font-size:0.72rem;font-weight:700;flex-shrink:0;margin-top:2px;">
-                        {{ loop.index }}
-                    </span>
-                    <div style="flex:1;">
-                        <p style="margin:0;font-size:0.875rem;color:#1a2744;font-weight:500;">
-                            {{ resp.item_text }}
-                        </p>
+                <!-- Responses grouped by section (PDF-style) -->
+                <style>
+                .view-tbl{width:100%;border-collapse:collapse;font-size:.875rem;margin-bottom:1rem}
+                .view-tbl thead th{background:#faf0d7;color:#7b6a3e;font-weight:700;font-size:.75rem;
+                  text-transform:uppercase;letter-spacing:.04em;padding:.45rem .9rem;border-bottom:2px solid #e0c96a}
+                .view-tbl thead th.th-no{width:46px;text-align:center}
+                .view-tbl thead th.th-check{width:80px;text-align:center}
+                .view-tbl thead th.th-rmk{width:230px}
+                .view-tbl tbody td{padding:.55rem .9rem;border-bottom:1px solid #f0ebe0;vertical-align:middle}
+                .view-tbl tbody td.td-no{text-align:center;color:#aaa;font-size:.78rem;font-weight:700}
+                .view-tbl tbody td.td-check{text-align:center}
+                .view-tbl .sec-row td{background:#3d3322;color:#fff;font-weight:700;font-size:.8rem;
+                  letter-spacing:.06em;text-transform:uppercase;padding:.5rem .9rem}
+                .view-chk{display:inline-flex;align-items:center;justify-content:center;
+                  width:26px;height:26px;border-radius:4px;font-size:.9rem}
+                .view-chk.yes{background:var(--gold);color:#1a1a2e;font-weight:700;}
+                .view-chk.no{background:#fce4ec;color:#c62828;border:1.5px solid #ef9a9a}
+                .view-rmk{font-size:.8rem;color:#c62828;background:#fff5f4;
+                  border-left:3px solid #e74a3b;padding:.25rem .5rem;border-radius:0 3px 3px 0;margin:0}
+                </style>
+                <table class="view-tbl">
+                  <thead>
+                    <tr>
+                      <th class="th-no">#</th>
+                      <th>Description</th>
+                      <th class="th-check">Checkbox</th>
+                      <th class="th-rmk">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for sec in sections_with_responses %}
+                    <tr class="sec-row"><td colspan="4">{{ sec['name'] }}</td></tr>
+                    {% for resp in sec['responses'] %}
+                    <tr>
+                      <td class="td-no">{{ loop.index }}</td>
+                      <td>{{ resp.item_text }}</td>
+                      <td class="td-check">
+                        <span class="view-chk {{ resp.answer }}">
+                          {% if resp.answer == 'yes' %}✓{% else %}✗{% endif %}
+                        </span>
+                      </td>
+                      <td>
                         {% if resp.answer == 'no' and resp.reason %}
-                        <p style="margin:0.3rem 0 0;font-size:0.8rem;color:#dc2626;
-                            background:#fff5f4;border-left:3px solid #e74a3b;
-                            padding:0.3rem 0.6rem;border-radius:0 4px 4px 0;">
-                            <i class="bi bi-chat-right-text me-1"></i>{{ resp.reason }}
-                        </p>
-                        {% endif %}
-                    </div>
-                    <span class="response-answer {{ resp.answer }}">
-                        {% if resp.answer == 'yes' %}
-                            <i class="bi bi-check-lg"></i> Yes
-                        {% else %}
-                            <i class="bi bi-x-lg"></i> No
-                        {% endif %}
-                    </span>
-                </div>
-                {% endfor %}
+                        <p class="view-rmk">{{ resp.reason }}</p>
+                        {% else %}—{% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                  </tbody>
+                </table>
             </div>
         </div>
 
@@ -275,10 +296,7 @@
                     <span class="kpi-metric-label">Branch</span>
                     <span class="kpi-metric-value">{{ submission.branch_name }}</span>
                 </div>
-                <div class="kpi-metric">
-                    <span class="kpi-metric-label">Checklist Type</span>
-                    <span class="kpi-metric-value">{{ submission.template_name }}</span>
-                </div>
+
                 <div class="kpi-metric">
                     <span class="kpi-metric-label">Date</span>
                     <span class="kpi-metric-value">{{ submission.submission_date }}</span>

@@ -1,103 +1,188 @@
 {% extends 'base.html' %}
-{% block title %}Branch Management — QC Monitor{% endblock %}
+{% block title %}Brands & Branches{% endblock %}
 
 {% block content %}
+<style>
+.bb-layout{display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap}
+.bb-col{flex:1;min-width:300px}
+
+/* ── panel card ── */
+.bb-card{background:#fff;border:1px solid #e6ddc8;border-radius:12px;overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:1.5rem}
+.bb-card-head{background:var(--dark-bg);color:var(--gold);font-weight:700;font-size:.88rem;
+  letter-spacing:.04em;padding:.7rem 1.1rem;border-bottom:2px solid var(--gold);
+  display:flex;align-items:center;justify-content:space-between}
+.bb-card-head span{opacity:.7;font-size:.75rem;font-weight:400}
+
+/* ── brand block ── */
+.brand-block{border-bottom:1px solid #f0ebe0}
+.brand-block:last-child{border-bottom:none}
+.brand-row{display:flex;align-items:center;gap:.6rem;padding:.65rem 1.1rem;
+  background:var(--gold-pale);border-bottom:1px solid #e6ddc8}
+.brand-name{font-weight:700;font-size:.92rem;color:var(--dark-bg);flex:1}
+.brand-del-form{margin:0}
+.btn-del{background:none;border:1px solid #f5c2c2;color:#c62828;border-radius:5px;
+  padding:.18rem .55rem;font-size:.75rem;cursor:pointer;font-weight:600}
+.btn-del:hover{background:#fce4ec}
+
+/* ── branch rows ── */
+.branch-row{display:flex;align-items:center;gap:.6rem;padding:.5rem 1.1rem .5rem 2rem;
+  border-bottom:1px solid #f5f0e8}
+.branch-row:last-child{border-bottom:none}
+.branch-row:hover{background:#fdf9f2}
+.branch-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex-shrink:0}
+.branch-name{font-size:.875rem;color:#333;flex:1}
+.branch-meta{font-size:.75rem;color:#aaa}
+.mgr-badge{font-size:.7rem;background:var(--gold-pale);color:var(--gold-deeper);
+  border-radius:10px;padding:.1rem .5rem;font-weight:600}
+
+/* no-brand branches */
+.no-brand-row{background:#fafaf8}
+
+/* ── add forms ── */
+.add-form-row{padding:.6rem 1.1rem;background:#fafaf8;border-top:1px solid #f0ebe0;
+  display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.add-form-row input,.add-form-row select{border:1px solid #d4c99a;border-radius:6px;
+  padding:.32rem .6rem;font-size:.84rem;background:#fff}
+.add-form-row input:focus,.add-form-row select:focus{outline:none;border-color:var(--gold)}
+.add-form-row input[name="name"]{flex:1;min-width:160px}
+.btn-add{background:var(--gold);color:var(--dark-bg);border:none;border-radius:6px;
+  padding:.32rem .9rem;font-size:.83rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-add:hover{background:var(--gold-dark)}
+
+.empty-brand{padding:.5rem 2rem .65rem;font-size:.8rem;color:#ccc;font-style:italic}
+</style>
+
 <div class="page-header">
-    <div>
-        <h1><i class="bi bi-building me-2" style="color:#4e73df;"></i>Branch Management</h1>
-        <p class="subtitle">{{ branches|length }} branch{{ 'es' if branches|length != 1 }} configured</p>
-    </div>
+  <div>
+    <h1><i class="bi bi-diagram-3 me-2" style="color:var(--gold)"></i>Brands &amp; Branches</h1>
+    <p class="subtitle">Manage brand groups and their branches</p>
+  </div>
 </div>
 
-<div class="row g-4">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+{% endwith %}
 
-    <!-- Existing Branches -->
-    <div class="col-lg-8">
-        <div class="qc-card">
-            {% if branches %}
-            <div style="overflow-x:auto;">
-                <table class="qc-table">
-                    <thead>
-                        <tr>
-                            <th>Branch Name</th>
-                            <th>Location</th>
-                            <th>Managers</th>
-                            <th>Created</th>
-                            <th style="text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for b in branches %}
-                        <tr>
-                            <td>
-                                <strong style="color:#1a2744;">
-                                    <i class="bi bi-building me-1" style="color:#4e73df;"></i>
-                                    {{ b.name }}
-                                </strong>
-                            </td>
-                            <td style="color:#7a869a;font-size:0.85rem;">
-                                {{ b.location or '—' }}
-                            </td>
-                            <td>
-                                {% if b.manager_count > 0 %}
-                                <span class="status-pill submitted" style="font-size:0.72rem;">
-                                    <i class="bi bi-people-fill"></i> {{ b.manager_count }}
-                                </span>
-                                {% else %}
-                                <span style="color:#dee2e6;font-size:0.82rem;">No managers</span>
-                                {% endif %}
-                            </td>
-                            <td style="color:#7a869a;font-size:0.8rem;">{{ b.created_at[:10] if b.created_at else '—' }}</td>
-                            <td>
-                                <div class="d-flex justify-content-end">
-                                    <form method="POST"
-                                          action="{{ url_for('admin.delete_branch', branch_id=b.id) }}"
-                                          onsubmit="return confirm('Delete branch {{ b.name }}?')">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                title="Delete Branch">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<div class="bb-layout">
+
+  {# ────── Left: Brands & their branches ────── #}
+  <div class="bb-col" style="flex:2">
+    <div class="bb-card">
+      <div class="bb-card-head">
+        Brands &amp; Branches
+        <span>{{ brands|length }} brand{{ 's' if brands|length != 1 }}, {{ branches|length }} branch{{ 'es' if branches|length != 1 }}</span>
+      </div>
+
+      {% if brands %}
+        {% for brand in brands %}
+        {% set brand_branches = branches | selectattr('brand_id', 'equalto', brand.id) | list %}
+        <div class="brand-block">
+          <div class="brand-row">
+            <i class="bi bi-bookmark-fill" style="color:var(--gold);font-size:.85rem"></i>
+            <span class="brand-name">{{ brand.name }}</span>
+            <span class="branch-meta">{{ brand_branches|length }} branch{{ 'es' if brand_branches|length != 1 }}</span>
+            <form method="POST" action="{{ url_for('admin.delete_brand', brand_id=brand.id) }}"
+                  class="brand-del-form"
+                  onsubmit="return confirm('Delete brand {{ brand.name }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-del">Delete</button>
+            </form>
+          </div>
+
+          {% if brand_branches %}
+            {% for b in brand_branches %}
+            <div class="branch-row">
+              <span class="branch-dot"></span>
+              <span class="branch-name">{{ b.name }}</span>
+              {% if b.location %}<span class="branch-meta">{{ b.location }}</span>{% endif %}
+              {% if b.manager_count > 0 %}
+                <span class="mgr-badge">{{ b.manager_count }} manager{{ 's' if b.manager_count > 1 }}</span>
+              {% endif %}
+              <form method="POST" action="{{ url_for('admin.delete_branch', branch_id=b.id) }}"
+                    style="margin:0" onsubmit="return confirm('Delete branch {{ b.name }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-del">Delete</button>
+              </form>
             </div>
-            {% else %}
-            <div class="empty-state">
-                <i class="bi bi-building-x"></i>
-                <p>No branches yet. Create one using the form.</p>
-            </div>
-            {% endif %}
+            {% endfor %}
+          {% else %}
+            <div class="empty-brand">No branches under this brand yet.</div>
+          {% endif %}
         </div>
+        {% endfor %}
+
+        {# Branches with no brand #}
+        {% set unbranded = branches | selectattr('brand_id', 'none') | list %}
+        {% if unbranded %}
+        <div class="brand-block">
+          <div class="brand-row" style="background:#f5f5f2">
+            <i class="bi bi-question-circle" style="color:#aaa;font-size:.85rem"></i>
+            <span class="brand-name" style="color:#888">No Brand</span>
+          </div>
+          {% for b in unbranded %}
+          <div class="branch-row no-brand-row">
+            <span class="branch-dot" style="background:#ccc"></span>
+            <span class="branch-name">{{ b.name }}</span>
+            {% if b.location %}<span class="branch-meta">{{ b.location }}</span>{% endif %}
+            <form method="POST" action="{{ url_for('admin.delete_branch', branch_id=b.id) }}"
+                  style="margin:0" onsubmit="return confirm('Delete branch {{ b.name }}?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-del">Delete</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      {% else %}
+        <div style="padding:2rem;text-align:center;color:#ccc;font-size:.9rem">
+          <i class="bi bi-bookmark-x" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>
+          No brands yet. Add one to get started.
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {# ────── Right: Add forms ────── #}
+  <div class="bb-col" style="flex:1;min-width:240px;max-width:320px">
+
+    {# Add Brand #}
+    <div class="bb-card">
+      <div class="bb-card-head">Add Brand</div>
+      <form method="POST" action="{{ url_for('admin.create_brand') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="add-form-row">
+          <input type="text" name="name" placeholder="Brand name (e.g. Kucu)" required>
+          <button type="submit" class="btn-add">+ Add</button>
+        </div>
+      </form>
     </div>
 
-    <!-- Add Branch Form -->
-    <div class="col-lg-4">
-        <div class="qc-card">
-            <div class="card-header-bar">
-                <h5><i class="bi bi-plus-circle me-2"></i>Add New Branch</h5>
-            </div>
-            <div class="card-body-pad">
-                <form method="POST" action="{{ url_for('admin.create_branch') }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="qc-input-group">
-                        <label>Branch Name</label>
-                        <input type="text" name="name" placeholder="e.g. Branch 4" required>
-                    </div>
-                    <div class="qc-input-group">
-                        <label>Location <span style="color:#adb5bd;font-weight:400;">(optional)</span></label>
-                        <input type="text" name="location" placeholder="e.g. Al Olaya, Riyadh">
-                    </div>
-                    <button type="submit" class="btn-qc-primary w-100 justify-content-center mt-2">
-                        <i class="bi bi-plus me-1"></i>Add Branch
-                    </button>
-                </form>
-            </div>
+    {# Add Branch #}
+    <div class="bb-card">
+      <div class="bb-card-head">Add Branch</div>
+      <form method="POST" action="{{ url_for('admin.create_branch') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="add-form-row" style="flex-direction:column;align-items:stretch;gap:.5rem">
+          <select name="brand_id">
+            <option value="">— No Brand —</option>
+            {% for brand in brands %}
+            <option value="{{ brand.id }}">{{ brand.name }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="name" placeholder="Branch name (e.g. Kucu Al Amerat)" required>
+          <input type="text" name="location" placeholder="Location (optional)">
+          <button type="submit" class="btn-add">+ Add Branch</button>
         </div>
+      </form>
     </div>
+
+  </div>
 </div>
 {% endblock %}

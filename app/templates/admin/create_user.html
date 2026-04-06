@@ -60,12 +60,19 @@
                                 <label>Branch</label>
                                 <select name="branch_id" id="branchSelect">
                                     <option value="">— Select Branch —</option>
+                                    {% set seen = [] %}
                                     {% for b in branches %}
-                                    <option value="{{ b.id }}"
-                                        {{ 'selected' if request.form.get('branch_id') == b.id|string }}>
-                                        {{ b.name }}
-                                    </option>
+                                      {% set brand = b.brand_name or 'No Brand' %}
+                                      {% if brand not in seen %}{% set _ = seen.append(brand) %}
+                                      {% if not loop.first %}</optgroup>{% endif %}
+                                      <optgroup label="{{ brand }}">
+                                      {% endif %}
+                                      <option value="{{ b.id }}"
+                                          {{ 'selected' if request.form.get('branch_id') == b.id|string }}>
+                                          {{ b.name }}
+                                      </option>
                                     {% endfor %}
+                                    {% if branches %}</optgroup>{% endif %}
                                 </select>
                                 <p class="input-hint">Required for Branch Manager role</p>
                             </div>

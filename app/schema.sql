@@ -1,5 +1,13 @@
+CREATE TABLE IF NOT EXISTS brands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS branches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand_id INTEGER REFERENCES brands(id),
     name TEXT NOT NULL UNIQUE,
     location TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -25,9 +33,20 @@ CREATE TABLE IF NOT EXISTS checklist_templates (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS checklist_sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id INTEGER NOT NULL REFERENCES checklist_templates(id),
+    branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS checklist_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     template_id INTEGER NOT NULL REFERENCES checklist_templates(id),
+    section_id INTEGER REFERENCES checklist_sections(id) ON DELETE SET NULL,
     item_text TEXT NOT NULL,
     display_order INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,

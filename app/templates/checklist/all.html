@@ -17,29 +17,33 @@
             <input type="date" name="date" value="{{ filter_date }}">
         </div>
         <div class="filter-group">
-            <label>Branch</label>
-            <select name="branch_id">
-                <option value="">All Branches</option>
-                {% for b in branches %}
-                <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
+            <label>Brand</label>
+            <select name="brand_id" onchange="this.form.submit()">
+                <option value="">All Brands</option>
+                {% for brand in brands %}
+                <option value="{{ brand.id }}" {{ 'selected' if filter_brand == brand.id|string }}>
+                    {{ brand.name }}
+                </option>
                 {% endfor %}
             </select>
         </div>
         <div class="filter-group">
-            <label>Checklist Type</label>
-            <select name="template_id">
-                <option value="">All Types</option>
-                {% for t in templates %}
-                <option value="{{ t.id }}" {{ 'selected' if filter_type == t.id|string }}>{{ t.name }}</option>
+            <label>Branch</label>
+            <select name="branch_id">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                {% if not filter_brand or b.brand_name == (brands | selectattr('id', 'equalto', filter_brand|int) | map(attribute='name') | first) %}
+                <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>
+                    {{ b.name }}
+                </option>
+                {% endif %}
                 {% endfor %}
             </select>
         </div>
-        <div class="filter-group" style="display:flex;align-items:flex-end;">
+        <div class="filter-group" style="display:flex;align-items:flex-end;gap:0.4rem;">
             <button type="submit" class="btn-qc-primary">
                 <i class="bi bi-funnel me-1"></i>Filter
             </button>
-        </div>
-        <div class="filter-group" style="display:flex;align-items:flex-end;">
             <a href="{{ url_for('checklist.all_submissions') }}" class="btn btn-outline-secondary btn-sm">
                 Reset
             </a>
@@ -47,16 +51,44 @@
     </div>
 </form>
 
+<!-- Active filter chips -->
+{% if filter_brand or filter_branch %}
+<div class="d-flex align-items-center gap-2 mb-3" style="flex-wrap:wrap;">
+    <span style="font-size:0.78rem;color:#7a869a;font-weight:600;">Active filters:</span>
+    {% if filter_brand %}
+    {% set brand_obj = brands | selectattr('id', 'equalto', filter_brand|int) | first %}
+    <span style="display:inline-flex;align-items:center;gap:0.35rem;background:#faf0d7;color:#7b6a3e;
+                 font-size:0.78rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;
+                 border:1px solid var(--gold);">
+        <i class="bi bi-tag"></i> {{ brand_obj.name if brand_obj else filter_brand }}
+        <a href="{{ url_for('checklist.all_submissions', date=filter_date, branch_id=filter_branch) }}"
+           style="color:#7b6a3e;text-decoration:none;margin-left:0.2rem;">&times;</a>
+    </span>
+    {% endif %}
+    {% if filter_branch %}
+    {% set branch_obj = branches | selectattr('id', 'equalto', filter_branch|int) | first %}
+    <span style="display:inline-flex;align-items:center;gap:0.35rem;background:#e8f4fd;color:#1a6fa6;
+                 font-size:0.78rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;
+                 border:1px solid #90cdf4;">
+        <i class="bi bi-building"></i> {{ branch_obj.name if branch_obj else filter_branch }}
+        <a href="{{ url_for('checklist.all_submissions', date=filter_date, brand_id=filter_brand) }}"
+           style="color:#1a6fa6;text-decoration:none;margin-left:0.2rem;">&times;</a>
+    </span>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Summary count -->
 <div class="d-flex justify-content-between align-items-center mb-3" style="font-size:0.85rem;color:#7a869a;">
     <span>
-        <strong style="color:#344054;">{{ submissions|length }}</strong> submission{{ 's' if submissions|length != 1 }} found
+        <strong style="color:#344054;">{{ submissions|length }}</strong>
+        submission{{ 's' if submissions|length != 1 }} found
         for <strong style="color:#344054;">{{ filter_date }}</strong>
     </span>
     {% set scored_count = submissions | selectattr('score') | list | length %}
     <span>
-        Scored: <strong style="color:#4e73df;">{{ scored_count }}</strong> /
-        Pending score: <strong style="color:#f6c23e;">{{ submissions | selectattr('score', 'none') | list | length }}</strong>
+        Scored: <strong style="color:#4e73df;">{{ scored_count }}</strong> &nbsp;/&nbsp;
+        Pending: <strong style="color:#f6c23e;">{{ submissions|length - scored_count }}</strong>
     </span>
 </div>
 
@@ -67,8 +99,8 @@
         <table class="qc-table">
             <thead>
                 <tr>
+                    <th>Brand</th>
                     <th>Branch</th>
-                    <th>Type</th>
                     <th>Submitted By</th>
                     <th>Time</th>
                     <th>Compliance</th>
@@ -78,23 +110,22 @@
                 </tr>
             </thead>
             <tbody>
+                {% set ns = namespace(last_brand='') %}
                 {% for sub in submissions %}
                 {% set pct = ((sub.yes_count / sub.total) * 100) | round(1) if sub.total else 0 %}
                 <tr class="clickable" data-href="{{ url_for('checklist.view', submission_id=sub.id) }}">
                     <td>
-                        <strong>{{ sub.branch_name }}</strong>
-                    </td>
-                    <td>
-                        {% if sub.template_name == 'Food Safety' %}
-                            <span style="color:#1cc88a;font-weight:600;">
-                                <i class="bi bi-egg-fried me-1"></i>Food Safety
-                            </span>
+                        {% if sub.brand_name %}
+                        <span style="font-size:0.78rem;font-weight:600;color:var(--gold-deeper);
+                                     background:#faf0d7;padding:0.15rem 0.5rem;border-radius:10px;
+                                     white-space:nowrap;">
+                            <i class="bi bi-tag me-1"></i>{{ sub.brand_name }}
+                        </span>
                         {% else %}
-                            <span style="color:#4e73df;font-weight:600;">
-                                <i class="bi bi-bucket me-1"></i>Cleaning
-                            </span>
+                        <span style="color:#adb5bd;font-size:0.78rem;">—</span>
                         {% endif %}
                     </td>
+                    <td><strong>{{ sub.branch_name }}</strong></td>
                     <td style="color:#7a869a;">{{ sub.submitted_by_name }}</td>
                     <td style="color:#7a869a;font-size:0.82rem;">{{ sub.submitted_at[11:16] if sub.submitted_at else '—' }}</td>
                     <td>

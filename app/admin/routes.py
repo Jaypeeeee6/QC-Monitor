@@ -51,7 +51,11 @@ def users():
 @role_required('it_admin')
 def create_user():
     db = get_db()
-    branches = db.execute('SELECT id, name FROM branches ORDER BY name').fetchall()
+    branches = db.execute(
+        '''SELECT b.id, b.name, br.name as brand_name
+           FROM branches b LEFT JOIN brands br ON br.id = b.brand_id
+           ORDER BY br.name, b.name'''
+    ).fetchall()
 
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
@@ -116,7 +120,11 @@ def edit_user(user_id):
         flash('User not found.', 'danger')
         return redirect(url_for('admin.users'))
 
-    branches = db.execute('SELECT id, name FROM branches ORDER BY name').fetchall()
+    branches = db.execute(
+        '''SELECT b.id, b.name, br.name as brand_name
+           FROM branches b LEFT JOIN brands br ON br.id = b.brand_id
+           ORDER BY br.name, b.name'''
+    ).fetchall()
 
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
@@ -229,14 +237,53 @@ def delete_user(user_id):
 @role_required('it_admin', 'qc_admin')
 def branches():
     db = get_db()
+    brands = db.execute('SELECT * FROM brands ORDER BY name').fetchall()
     all_branches = db.execute(
-        '''SELECT b.*, COUNT(u.id) as manager_count
+        '''SELECT b.*, br.name as brand_name, COUNT(u.id) as manager_count
            FROM branches b
+           LEFT JOIN brands br ON br.id = b.brand_id
            LEFT JOIN users u ON u.branch_id = b.id AND u.role = 'branch_manager' AND u.is_active = 1
-           GROUP BY b.id
-           ORDER BY b.name'''
+           GROUP BY b.id ORDER BY br.name, b.name'''
     ).fetchall()
-    return render_template('admin/branches.html', branches=all_branches)
+    return render_template('admin/branches.html', brands=brands, branches=all_branches)
+
+
+@admin_bp.route('/brands/create', methods=['POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def create_brand():
+    db = get_db()
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Brand name is required.', 'danger')
+        return redirect(url_for('admin.branches'))
+    existing = db.execute('SELECT id FROM brands WHERE name = ?', (name,)).fetchone()
+    if existing:
+        flash(f'Brand "{name}" already exists.', 'danger')
+        return redirect(url_for('admin.branches'))
+    db.execute('INSERT INTO brands (name) VALUES (?)', (name,))
+    db.commit()
+    flash(f'Brand "{name}" created.', 'success')
+    return redirect(url_for('admin.branches'))
+
+
+@admin_bp.route('/brands/<int:brand_id>/delete', methods=['POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def delete_brand(brand_id):
+    db = get_db()
+    brand = db.execute('SELECT * FROM brands WHERE id = ?', (brand_id,)).fetchone()
+    if not brand:
+        flash('Brand not found.', 'danger')
+        return redirect(url_for('admin.branches'))
+    count = db.execute('SELECT COUNT(*) FROM branches WHERE brand_id = ?', (brand_id,)).fetchone()[0]
+    if count > 0:
+        flash(f'Cannot delete "{brand["name"]}" — it has {count} branch(es). Remove them first.', 'danger')
+        return redirect(url_for('admin.branches'))
+    db.execute('DELETE FROM brands WHERE id = ?', (brand_id,))
+    db.commit()
+    flash(f'Brand "{brand["name"]}" deleted.', 'success')
+    return redirect(url_for('admin.branches'))
 
 
 @admin_bp.route('/branches/create', methods=['POST'])
@@ -246,6 +293,7 @@ def create_branch():
     db = get_db()
     name = request.form.get('name', '').strip()
     location = request.form.get('location', '').strip()
+    brand_id = request.form.get('brand_id', '') or None
 
     if not name:
         flash('Branch name is required.', 'danger')
@@ -256,7 +304,10 @@ def create_branch():
         flash(f'A branch named "{name}" already exists.', 'danger')
         return redirect(url_for('admin.branches'))
 
-    db.execute('INSERT INTO branches (name, location) VALUES (?, ?)', (name, location or None))
+    db.execute(
+        'INSERT INTO branches (name, location, brand_id) VALUES (?, ?, ?)',
+        (name, location or None, int(brand_id) if brand_id else None)
+    )
     db.commit()
     flash(f'Branch "{name}" created successfully.', 'success')
     return redirect(url_for('admin.branches'))
