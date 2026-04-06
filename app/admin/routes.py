@@ -313,6 +313,54 @@ def create_branch():
     return redirect(url_for('admin.branches'))
 
 
+@admin_bp.route('/checklist-templates')
+@login_required
+@role_required('it_admin', 'qc_admin')
+def checklist_templates():
+    db = get_db()
+    templates = db.execute(
+        '''SELECT ct.*,
+                  COUNT(DISTINCT ci.id) AS item_count
+           FROM checklist_templates ct
+           LEFT JOIN checklist_items ci ON ci.template_id = ct.id
+           GROUP BY ct.id
+           ORDER BY ct.id'''
+    ).fetchall()
+    return render_template('admin/checklist_templates.html', templates=templates)
+
+
+@admin_bp.route('/checklist-templates/<int:template_id>/delete', methods=['POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def delete_checklist_template(template_id):
+    db = get_db()
+    template = db.execute(
+        'SELECT * FROM checklist_templates WHERE id = ?', (template_id,)
+    ).fetchone()
+
+    if not template:
+        flash('Template not found.', 'danger')
+        return redirect(url_for('admin.checklist_templates'))
+
+    in_use = db.execute(
+        'SELECT COUNT(*) FROM checklist_submissions WHERE template_id = ?', (template_id,)
+    ).fetchone()[0]
+
+    if in_use > 0:
+        flash(
+            f'Cannot delete "{template["name"]}" — it has {in_use} submission(s) on record. '
+            'Deactivate it instead.',
+            'danger'
+        )
+        return redirect(url_for('admin.checklist_templates'))
+
+    db.execute('DELETE FROM checklist_items WHERE template_id = ?', (template_id,))
+    db.execute('DELETE FROM checklist_templates WHERE id = ?', (template_id,))
+    db.commit()
+    flash(f'Template "{template["name"]}" deleted.', 'success')
+    return redirect(url_for('admin.checklist_templates'))
+
+
 @admin_bp.route('/branches/<int:branch_id>/delete', methods=['POST'])
 @login_required
 @role_required('it_admin', 'qc_admin')

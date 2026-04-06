@@ -569,10 +569,24 @@ def manage_items():
            ORDER BY br.name, b.name'''
     ).fetchall()
     selected_branch_id = request.args.get('branch_id', type=int)
+    selected_template_id = request.args.get('template_id', type=int)
 
     # Default to first branch if none selected
     if not selected_branch_id and branches:
         selected_branch_id = branches[0]['id']
+
+    # Resolve the active template to use
+    if selected_template_id:
+        tmpl = db.execute(
+            'SELECT * FROM checklist_templates WHERE id = ?', (selected_template_id,)
+        ).fetchone()
+    else:
+        tmpl = db.execute(
+            'SELECT * FROM checklist_templates WHERE is_active = 1 ORDER BY id LIMIT 1'
+        ).fetchone()
+
+    template_id = tmpl['id'] if tmpl else 1
+    selected_template = tmpl
 
     selected_branch = None
     sections_data = []
@@ -580,8 +594,8 @@ def manage_items():
     if selected_branch_id:
         selected_branch = db.execute('SELECT * FROM branches WHERE id = ?', (selected_branch_id,)).fetchone()
         sections = db.execute(
-            'SELECT * FROM checklist_sections WHERE branch_id = ? ORDER BY display_order, id',
-            (selected_branch_id,)
+            'SELECT * FROM checklist_sections WHERE branch_id = ? AND template_id = ? ORDER BY display_order, id',
+            (selected_branch_id, template_id)
         ).fetchall()
         for sec in sections:
             items = db.execute(
@@ -590,10 +604,6 @@ def manage_items():
             ).fetchall()
             sections_data.append({'section': sec, 'items': items})
 
-    # Get the active template id (used as hidden field when creating sections)
-    tmpl = db.execute('SELECT id FROM checklist_templates WHERE is_active = 1 ORDER BY id LIMIT 1').fetchone()
-    template_id = tmpl['id'] if tmpl else 1
-
     return render_template(
         'checklist/manage_items.html',
         branches=branches,
@@ -601,6 +611,7 @@ def manage_items():
         selected_branch_id=selected_branch_id,
         sections_data=sections_data,
         template_id=template_id,
+        selected_template=selected_template,
     )
 
 
@@ -744,10 +755,11 @@ def edit_item(item_id):
 
         db.commit()
         flash('Item updated.', 'success')
-        # Get branch from section
-        sec = db.execute('SELECT branch_id FROM checklist_sections WHERE id = ?', (item['section_id'],)).fetchone()
+        # Get branch and template from section
+        sec = db.execute('SELECT branch_id, template_id FROM checklist_sections WHERE id = ?', (item['section_id'],)).fetchone()
         bid = sec['branch_id'] if sec else None
-        return redirect(url_for('checklist.manage_items', branch_id=bid))
+        tid = sec['template_id'] if sec else int(template_id) if template_id else None
+        return redirect(url_for('checklist.manage_items', branch_id=bid, template_id=tid))
 
     return render_template('checklist/edit_item.html', item=item,
                            templates=templates, branches=branches,
@@ -755,13 +767,17 @@ def edit_item(item_id):
 
 
 def _get_item_branch(db, item_id):
-    """Return the branch_id of the section containing this item."""
+    """Return (branch_id, template_id) of the section containing this item."""
     row = db.execute(
-        '''SELECT cs.branch_id FROM checklist_items ci
+        '''SELECT cs.branch_id, cs.template_id FROM checklist_items ci
            JOIN checklist_sections cs ON cs.id = ci.section_id
            WHERE ci.id = ?''', (item_id,)
     ).fetchone()
-    return row['branch_id'] if row else None
+    if row:
+        return row['branch_id'], row['template_id']
+    # Fall back to template_id on the item itself
+    item_row = db.execute('SELECT template_id FROM checklist_items WHERE id = ?', (item_id,)).fetchone()
+    return None, (item_row['template_id'] if item_row else None)
 
 
 @checklist_bp.route('/items/<int:item_id>/toggle', methods=['POST'])
@@ -772,12 +788,12 @@ def toggle_item(item_id):
     item = db.execute('SELECT * FROM checklist_items WHERE id = ?', (item_id,)).fetchone()
     if not item:
         abort(404)
-    branch_id = _get_item_branch(db, item_id)
+    branch_id, template_id = _get_item_branch(db, item_id)
     new_status = 0 if item['is_active'] else 1
     db.execute('UPDATE checklist_items SET is_active = ? WHERE id = ?', (new_status, item_id))
     db.commit()
     flash('Item ' + ('activated.' if new_status else 'deactivated.'), 'success')
-    return redirect(url_for('checklist.manage_items', branch_id=branch_id))
+    return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=template_id))
 
 
 @checklist_bp.route('/items/<int:item_id>/delete', methods=['POST'])
@@ -788,7 +804,7 @@ def delete_item(item_id):
     item = db.execute('SELECT * FROM checklist_items WHERE id = ?', (item_id,)).fetchone()
     if not item:
         abort(404)
-    branch_id = _get_item_branch(db, item_id)
+    branch_id, template_id = _get_item_branch(db, item_id)
 
     in_use = db.execute(
         'SELECT COUNT(*) AS cnt FROM checklist_responses WHERE item_id = ?', (item_id,)
@@ -796,13 +812,13 @@ def delete_item(item_id):
 
     if in_use > 0:
         flash(f'Cannot delete — {in_use} response(s) exist. Deactivate it instead.', 'danger')
-        return redirect(url_for('checklist.manage_items', branch_id=branch_id))
+        return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=template_id))
 
     db.execute('DELETE FROM checklist_item_branches WHERE item_id = ?', (item_id,))
     db.execute('DELETE FROM checklist_items WHERE id = ?', (item_id,))
     db.commit()
     flash('Item deleted.', 'success')
-    return redirect(url_for('checklist.manage_items', branch_id=branch_id))
+    return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=template_id))
 
 
 # ---------------------------------------------------------------------------
@@ -841,7 +857,7 @@ def create_section():
     )
     db.commit()
     flash(f'Section "{name}" added.', 'success')
-    return redirect(url_for('checklist.manage_items', branch_id=branch_id))
+    return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=template_id))
 
 
 @checklist_bp.route('/sections/<int:section_id>/edit', methods=['POST'])
@@ -861,7 +877,7 @@ def edit_section(section_id):
     db.execute('UPDATE checklist_sections SET name = ? WHERE id = ?', (name, section_id))
     db.commit()
     flash('Section updated.', 'success')
-    return redirect(url_for('checklist.manage_items', branch_id=section['branch_id']))
+    return redirect(url_for('checklist.manage_items', branch_id=section['branch_id'], template_id=section['template_id']))
 
 
 @checklist_bp.route('/sections/<int:section_id>/delete', methods=['POST'])
@@ -888,4 +904,4 @@ def delete_section(section_id):
     db.execute('DELETE FROM checklist_sections WHERE id = ?', (section_id,))
     db.commit()
     flash(f'Section "{section["name"]}" deleted.', 'success')
-    return redirect(url_for('checklist.manage_items', branch_id=branch_id))
+    return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=section['template_id']))

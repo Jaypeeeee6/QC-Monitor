@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Checklist Templates — QC Monitor{% endblock %}
+
+{% block content %}
+<style>
+.tmpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.tmpl-card {
+  background: #fff;
+  border: 1px solid #e6ddc8;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow .15s, transform .15s;
+}
+.tmpl-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,.1);
+  transform: translateY(-2px);
+}
+
+.tmpl-card-header {
+  background: var(--dark-bg);
+  padding: 1.1rem 1.25rem .9rem;
+  border-bottom: 3px solid var(--gold);
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+.tmpl-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(212,175,55,.15);
+  border: 2px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+.tmpl-card-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+}
+.tmpl-card-status {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: .18rem .55rem;
+  border-radius: 20px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.tmpl-card-status.active  { background: rgba(28,200,138,.18); color: #1cc88a; }
+.tmpl-card-status.inactive { background: rgba(231,74,59,.15);  color: #e74a3b; }
+
+.tmpl-card-body {
+  padding: 1rem 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+.tmpl-meta-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .82rem;
+  color: #7a869a;
+}
+.tmpl-meta-row i { color: var(--gold); font-size: .85rem; }
+.tmpl-meta-row strong { color: #2d3748; }
+.tmpl-desc {
+  font-size: .85rem;
+  color: #555;
+  line-height: 1.5;
+  margin-top: .1rem;
+}
+.tmpl-desc-empty { font-style: italic; color: #bbb; font-size: .82rem; }
+
+.tmpl-card-footer {
+  padding: .85rem 1.25rem;
+  border-top: 1px solid #f0ebe0;
+  display: flex;
+  gap: .6rem;
+}
+
+.btn-tmpl-edit {
+  flex: 1;
+  background: var(--gold);
+  color: var(--dark-bg);
+  border: none;
+  border-radius: 8px;
+  padding: .5rem .9rem;
+  font-size: .84rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-tmpl-edit:hover { background: var(--gold-dark); color: var(--dark-bg); }
+
+.btn-tmpl-delete {
+  background: #fff;
+  color: #e74a3b;
+  border: 1.5px solid #fca5a5;
+  border-radius: 8px;
+  padding: .5rem .85rem;
+  font-size: .84rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.btn-tmpl-delete:hover { background: #fef2f2; border-color: #e74a3b; }
+
+.tmpl-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: #bbb;
+}
+.tmpl-empty i { font-size: 2.8rem; display: block; margin-bottom: .75rem; }
+.tmpl-empty p { font-size: .95rem; }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-journal-text me-2" style="color:var(--gold);"></i>Checklist Templates</h1>
+    <p class="subtitle">Manage the daily checklist templates assigned to branch managers</p>
+  </div>
+</div>
+
+{% if templates %}
+<div class="tmpl-grid">
+  {% for tmpl in templates %}
+  <div class="tmpl-card">
+
+    <div class="tmpl-card-header">
+      <div class="tmpl-card-icon">
+        {% if 'food' in tmpl.name|lower or 'safety' in tmpl.name|lower %}
+          <i class="bi bi-egg-fried" style="color:var(--gold);"></i>
+        {% elif 'clean' in tmpl.name|lower %}
+          <i class="bi bi-bucket" style="color:var(--gold);"></i>
+        {% else %}
+          <i class="bi bi-clipboard-check" style="color:var(--gold);"></i>
+        {% endif %}
+      </div>
+      <h3 class="tmpl-card-title">{{ tmpl.name }}</h3>
+      <span class="tmpl-card-status {{ 'active' if tmpl.is_active else 'inactive' }}">
+        {{ 'Active' if tmpl.is_active else 'Inactive' }}
+      </span>
+    </div>
+
+    <div class="tmpl-card-body">
+      {% if tmpl.description %}
+        <p class="tmpl-desc">{{ tmpl.description }}</p>
+      {% else %}
+        <p class="tmpl-desc tmpl-desc-empty">No description provided.</p>
+      {% endif %}
+
+      <div class="tmpl-meta-row">
+        <i class="bi bi-ui-checks"></i>
+        <span><strong>{{ tmpl.item_count }}</strong> checklist item{{ 's' if tmpl.item_count != 1 else '' }}</span>
+      </div>
+
+      <div class="tmpl-meta-row">
+        <i class="bi bi-calendar3"></i>
+        <span>Created {{ tmpl.created_at[:10] if tmpl.created_at else '—' }}</span>
+      </div>
+    </div>
+
+    <div class="tmpl-card-footer">
+      <a href="{{ url_for('checklist.manage_items', template_id=tmpl.id) }}" class="btn-tmpl-edit">
+        <i class="bi bi-pencil-square"></i> Edit Items
+      </a>
+
+      <form method="POST"
+            action="{{ url_for('admin.delete_checklist_template', template_id=tmpl.id) }}"
+            onsubmit="return confirm('Delete template \'{{ tmpl.name }}\'?\nThis will also remove all its items. This cannot be undone.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-tmpl-delete">
+          <i class="bi bi-trash3"></i> Delete
+        </button>
+      </form>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="tmpl-empty">
+  <i class="bi bi-journal-x"></i>
+  <p>No checklist templates found.</p>
+</div>
+{% endif %}
+
+{% endblock %}
