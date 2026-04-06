@@ -349,8 +349,13 @@ def view(submission_id):
     yes_count = sum(1 for r in responses if r['answer'] == 'yes')
     compliance_pct = round((yes_count / total * 100), 1) if total > 0 else 0
 
+    template = (
+        'checklist/view_panel.html'
+        if request.args.get('panel')
+        else 'checklist/view.html'
+    )
     return render_template(
-        'checklist/view.html',
+        template,
         submission=submission,
         responses=responses,
         sections_with_responses=sections_with_responses,

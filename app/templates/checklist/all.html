@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="bi bi-list-check me-2" style="color:#4e73df;"></i>All Checklists</h1>
+        <h1><i class="bi bi-list-check me-2" style="color:var(--gold);"></i>Submitted Checklists</h1>
         <p class="subtitle">View daily submissions from all branches</p>
     </div>
 </div>
@@ -113,7 +113,10 @@
                 {% set ns = namespace(last_brand='') %}
                 {% for sub in submissions %}
                 {% set pct = ((sub.yes_count / sub.total) * 100) | round(1) if sub.total else 0 %}
-                <tr class="clickable" data-href="{{ url_for('checklist.view', submission_id=sub.id) }}">
+                <tr class="submission-row"
+                    style="cursor:pointer;"
+                    data-submission-id="{{ sub.id }}"
+                    data-full-url="{{ url_for('checklist.view', submission_id=sub.id) }}">
                     <td>
                         {% if sub.brand_name %}
                         <span style="font-size:0.78rem;font-weight:600;color:var(--gold-deeper);
@@ -158,11 +161,12 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('checklist.view', submission_id=sub.id) }}"
-                           class="btn btn-sm btn-outline-primary"
-                           onclick="event.stopPropagation()">
+                        <button class="btn btn-sm btn-outline-primary open-panel-btn"
+                                data-submission-id="{{ sub.id }}"
+                                data-full-url="{{ url_for('checklist.view', submission_id=sub.id) }}"
+                                onclick="event.stopPropagation()">
                             <i class="bi bi-eye"></i>
-                        </a>
+                        </button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -176,4 +180,88 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Submission Detail Side Panel -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="submissionPanel"
+     style="width:min(780px,95vw);margin:calc(60px + 0.75rem) 0.75rem 0.75rem;height:calc(100% - 60px - 1.5rem);border-radius:14px;box-shadow:-4px 0 32px rgba(0,0,0,0.18);overflow:hidden;">
+    <div class="offcanvas-header"
+         style="border-bottom:1px solid #e8ecf2;padding:1rem 1.5rem;background:#fff;position:sticky;top:0;z-index:10;">
+        <h5 class="offcanvas-title mb-0" style="font-size:1rem;font-weight:700;color:#1a2744;">
+            <i class="bi bi-clipboard-data me-2" style="color:#4e73df;"></i>Submission Details
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+            <a id="panelFullPageBtn" href="#" target="_blank"
+               class="btn btn-sm btn-outline-primary"
+               style="font-size:0.78rem;">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Open Full Page
+            </a>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+    </div>
+    <div class="offcanvas-body" id="submissionPanelBody" style="padding:1.5rem;background:#f4f6fb;">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;"></div>
+            <p class="mt-3 text-muted" style="font-size:0.85rem;">Loading submission…</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const panelEl   = document.getElementById('submissionPanel');
+    const panelBody = document.getElementById('submissionPanelBody');
+    const fullBtn   = document.getElementById('panelFullPageBtn');
+    const bsPanel   = new bootstrap.Offcanvas(panelEl);
+
+    function openPanel(submissionId, fullUrl) {
+        fullBtn.href = fullUrl;
+        panelBody.innerHTML =
+            '<div class="text-center py-5">' +
+            '<div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;"></div>' +
+            '<p class="mt-3 text-muted" style="font-size:0.85rem;">Loading submission…</p>' +
+            '</div>';
+        bsPanel.show();
+
+        fetch('/checklist/view/' + submissionId + '?panel=1')
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function (html) {
+                panelBody.innerHTML = html;
+                // Re-execute any inline scripts in the partial
+                panelBody.querySelectorAll('script').forEach(function (old) {
+                    const s = document.createElement('script');
+                    s.textContent = old.textContent;
+                    old.parentNode.replaceChild(s, old);
+                });
+            })
+            .catch(function () {
+                panelBody.innerHTML =
+                    '<div class="alert alert-danger m-3">' +
+                    '<i class="bi bi-exclamation-circle me-2"></i>' +
+                    'Failed to load submission details. ' +
+                    '<a href="' + fullUrl + '">Open full page</a> instead.' +
+                    '</div>';
+            });
+    }
+
+    // Row clicks
+    document.querySelectorAll('tr.submission-row').forEach(function (row) {
+        row.addEventListener('click', function () {
+            openPanel(this.dataset.submissionId, this.dataset.fullUrl);
+        });
+    });
+
+    // Eye-button clicks
+    document.querySelectorAll('.open-panel-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openPanel(this.dataset.submissionId, this.dataset.fullUrl);
+        });
+    });
+})();
+</script>
 {% endblock %}

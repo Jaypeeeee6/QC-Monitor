@@ -59,7 +59,7 @@
             </a>
             <a href="{{ url_for('checklist.all_submissions') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'checklist.all_submissions' }}">
-                <i class="bi bi-list-check"></i> All Checklists
+                <i class="bi bi-list-check"></i> Submitted Checklists
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item') }}">
@@ -96,7 +96,7 @@
             </a>
             <a href="{{ url_for('checklist.all_submissions') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'checklist.all_submissions' }}">
-                <i class="bi bi-list-check"></i> All Checklists
+                <i class="bi bi-list-check"></i> Submitted Checklists
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item') }}">

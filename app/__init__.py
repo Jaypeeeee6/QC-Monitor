@@ -35,6 +35,20 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(reports_bp)
 
+    @app.template_filter('timeformat')
+    def timeformat_filter(value):
+        """Convert a datetime string like '2026-04-06 09:30' to '9:30 AM'."""
+        if not value:
+            return ''
+        try:
+            time_part = str(value)[11:16]
+            hour, minute = int(time_part[:2]), time_part[3:5]
+            period = 'AM' if hour < 12 else 'PM'
+            hour12 = hour % 12 or 12
+            return f'{hour12}:{minute} {period}'
+        except Exception:
+            return str(value)[11:16]
+
     @login_manager.user_loader
     def load_user(user_id):
         from app.db import get_db

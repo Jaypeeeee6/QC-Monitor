@@ -1,0 +1,394 @@
+{# Partial template rendered inside the side-panel offcanvas — no base layout #}
+
+<style>
+.view-tbl{width:100%;border-collapse:collapse;font-size:.875rem;margin-bottom:1rem}
+.view-tbl thead th{background:#faf0d7;color:#7b6a3e;font-weight:700;font-size:.75rem;
+  text-transform:uppercase;letter-spacing:.04em;padding:.45rem .9rem;border-bottom:2px solid #e0c96a}
+.view-tbl thead th.th-no{width:46px;text-align:center}
+.view-tbl thead th.th-check{width:80px;text-align:center}
+.view-tbl thead th.th-rmk{width:200px}
+.view-tbl tbody td{padding:.55rem .9rem;border-bottom:1px solid #f0ebe0;vertical-align:middle}
+.view-tbl tbody td.td-no{text-align:center;color:#aaa;font-size:.78rem;font-weight:700}
+.view-tbl tbody td.td-check{text-align:center}
+.view-tbl .sec-row td{background:#3d3322;color:#fff;font-weight:700;font-size:.8rem;
+  letter-spacing:.06em;text-transform:uppercase;padding:.5rem .9rem}
+.view-chk{display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:4px;font-size:.9rem}
+.view-chk.yes{background:var(--gold);color:#1a1a2e;font-weight:700;}
+.view-chk.no{background:#fce4ec;color:#c62828;border:1.5px solid #ef9a9a}
+.view-rmk{font-size:.8rem;color:#c62828;background:#fff5f4;
+  border-left:3px solid #e74a3b;padding:.25rem .5rem;border-radius:0 3px 3px 0;margin:0}
+
+/* Comment thread */
+.comment-photo-grid{display:flex;flex-wrap:wrap;gap:.4rem}
+.comment-photo-thumb{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;
+  border:2px solid rgba(255,255,255,0.25);display:block;flex-shrink:0;transition:border-color .15s}
+.comment-photo-thumb:hover{border-color:var(--gold)}
+.comment-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.comment-photo-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.35);display:flex;
+  align-items:center;justify-content:center;color:#fff;font-size:1rem;opacity:0;transition:opacity .15s}
+.comment-photo-thumb:hover .comment-photo-overlay{opacity:1}
+.cmt-drop-zone{display:flex;align-items:center;gap:.4rem;padding:.55rem .85rem;
+  border:1.5px dashed #e2e8f0;border-radius:8px;cursor:default;
+  transition:border-color .2s,background .2s;background:#fafbfc}
+.cmt-drop-zone.drag-over{border-color:var(--gold);background:var(--gold-light)}
+.cmt-photo-preview{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
+.cmt-preview-item{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:2px solid #e2e8f0}
+.cmt-preview-item img{width:100%;height:100%;object-fit:cover}
+.cmt-remove-btn{position:absolute;top:3px;right:3px;width:20px;height:20px;background:rgba(0,0,0,0.6);
+  color:#fff;border:none;border-radius:50%;font-size:.65rem;display:flex;align-items:center;
+  justify-content:center;cursor:pointer}
+.cmt-remove-btn:hover{background:#ef4444}
+</style>
+
+<!-- Submission header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h5 style="margin:0;font-weight:800;color:#1a2744;">
+            {{ submission.branch_name }}
+        </h5>
+        <p style="margin:.2rem 0 0;font-size:.82rem;color:#7a869a;">
+            {{ submission.submission_date }} &mdash;
+            Submitted by <strong>{{ submission.submitted_by_name }}</strong>
+            at {{ submission.submitted_at | timeformat }}
+        </p>
+    </div>
+    <span class="status-pill submitted" style="flex-shrink:0;">
+        <i class="bi bi-check-circle-fill"></i> Submitted
+    </span>
+</div>
+
+<div class="row g-3">
+
+    <!-- LEFT: Responses + Comments -->
+    <div class="col-lg-7">
+
+        <!-- Compliance summary -->
+        <div class="qc-card mb-3">
+            <div class="card-body-pad py-3">
+                <div class="d-flex justify-content-between align-items-center gap-3">
+                    <div>
+                        <p style="margin:0;font-size:.72rem;color:#7a869a;text-transform:uppercase;letter-spacing:.06em;">Compliance</p>
+                        <p style="margin:0;font-size:1.4rem;font-weight:800;
+                            color:{{ '#1cc88a' if compliance_pct >= 80 else '#f6c23e' if compliance_pct >= 60 else '#e74a3b' }};">
+                            {{ compliance_pct }}%
+                        </p>
+                    </div>
+                    <div class="text-center">
+                        <p style="margin:0;font-size:.72rem;color:#7a869a;">Items Passed</p>
+                        <p style="margin:0;font-size:1.2rem;font-weight:700;color:#1a2744;">
+                            {{ yes_count }} / {{ total }}
+                        </p>
+                    </div>
+                    <div style="flex:1;max-width:140px;">
+                        <div class="compliance-bar">
+                            <div class="bar-fill {{ 'high' if compliance_pct >= 80 else 'medium' if compliance_pct >= 60 else 'low' }}"
+                                 style="width:{{ compliance_pct }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checklist responses table -->
+        <div class="qc-card mb-3">
+            <div class="card-header-bar">
+                <h5 style="font-size:.9rem;"><i class="bi bi-list-check me-2"></i>Checklist Responses</h5>
+            </div>
+            <div class="card-body-pad" style="padding-top:.5rem;">
+                <div style="overflow-x:auto;">
+                    <table class="view-tbl">
+                        <thead>
+                            <tr>
+                                <th class="th-no">#</th>
+                                <th>Description</th>
+                                <th class="th-check">Check</th>
+                                <th class="th-rmk">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sec in sections_with_responses %}
+                            <tr class="sec-row"><td colspan="4">{{ sec['name'] }}</td></tr>
+                            {% for resp in sec['responses'] %}
+                            <tr>
+                                <td class="td-no">{{ loop.index }}</td>
+                                <td>{{ resp.item_text }}</td>
+                                <td class="td-check">
+                                    <span class="view-chk {{ resp.answer }}">
+                                        {% if resp.answer == 'yes' %}✓{% else %}✗{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if resp.answer == 'no' and resp.reason %}
+                                    <p class="view-rmk">{{ resp.reason }}</p>
+                                    {% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments -->
+        <div class="qc-card">
+            <div class="card-header-bar">
+                <h5 style="font-size:.9rem;">
+                    <i class="bi bi-chat-dots me-2"></i>Comments
+                    {% if comments %}
+                    <span class="badge bg-secondary ms-1" style="font-size:.7rem;">{{ comments|length }}</span>
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body-pad">
+                {% if comments %}
+                <div class="comment-thread mb-4">
+                    {% for item in comments %}
+                    {% set c = item.comment %}
+                    {% set photos = item.photos %}
+                    <div class="comment-bubble {{ 'mine' if c.user_id == current_user.id else 'theirs' }}">
+                        <div class="comment-meta">
+                            <i class="bi bi-person-circle"></i>
+                            <span class="author">{{ c.full_name }}</span>
+                            <span class="role-badge {{ c.role }}" style="font-size:.65rem;">
+                                {{ c.role | replace('_', ' ') | title }}
+                            </span>
+                            <span>&mdash; {{ c.created_at[:16] }}</span>
+                        </div>
+                        <p style="margin:0 0 {% if photos %}0.6rem{% else %}0{% endif %};white-space:pre-wrap;">{{ c.message }}</p>
+                        {% if photos %}
+                        <div class="comment-photo-grid">
+                            {% for p in photos %}
+                            <a href="{{ url_for('static', filename='uploads/comments/' + p.filename) }}"
+                               target="_blank" class="comment-photo-thumb" title="{{ p.original_name }}">
+                                <img src="{{ url_for('static', filename='uploads/comments/' + p.filename) }}"
+                                     alt="{{ p.original_name }}" loading="lazy">
+                                <div class="comment-photo-overlay"><i class="bi bi-zoom-in"></i></div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding:1.25rem;">
+                    <i class="bi bi-chat-square-dots"></i>
+                    <p>No comments yet.</p>
+                </div>
+                {% endif %}
+
+                {% if current_user.role != 'management' %}
+                <form method="POST" action="{{ url_for('checklist.comment', submission_id=submission.id) }}"
+                      enctype="multipart/form-data" id="panelCommentForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <textarea name="message" rows="3"
+                        style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:.65rem;
+                               font-size:.875rem;resize:vertical;outline:none;transition:border-color .2s;"
+                        placeholder="Write a comment…" required maxlength="1000"
+                        onfocus="this.style.borderColor='var(--gold)'"
+                        onblur="this.style.borderColor='#e2e8f0'"></textarea>
+                    <div style="margin-top:.5rem;">
+                        <div id="panelCmtDropZone" class="cmt-drop-zone">
+                            <i class="bi bi-image" style="color:var(--text-muted);"></i>
+                            <span style="font-size:.78rem;color:var(--text-muted);margin:0 .4rem;">Attach photos (up to 5)</span>
+                            <label for="panelCmtPhotoInput"
+                                   style="font-size:.78rem;color:var(--gold-deeper);cursor:pointer;font-weight:600;text-decoration:underline;margin:0;">
+                                Browse
+                            </label>
+                            <input type="file" id="panelCmtPhotoInput" name="photos" multiple
+                                   accept=".jpg,.jpeg,.png,.gif,.webp" style="display:none;">
+                        </div>
+                        <div id="panelCmtPhotoPreview" class="cmt-photo-preview" style="display:none;"></div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-2">
+                        <button type="submit" class="btn-qc-primary">
+                            <i class="bi bi-send me-1"></i>Post Comment
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT: Score + Info -->
+    <div class="col-lg-5">
+
+        <!-- Score Card -->
+        <div class="qc-card mb-3">
+            <div class="card-header-bar">
+                <h5 style="font-size:.9rem;"><i class="bi bi-star me-2"></i>QC Score</h5>
+            </div>
+            <div class="card-body-pad">
+                {% if submission.score is not none %}
+                <div class="text-center mb-3">
+                    {% set sc = submission.score %}
+                    <div class="score-circle mx-auto {{ 'excellent' if sc >= 90 else 'good' if sc >= 75 else 'warning' if sc >= 60 else 'danger' }}"
+                         style="width:72px;height:72px;font-size:1.4rem;">
+                        {{ sc }}
+                    </div>
+                    <p style="margin:.4rem 0 0;font-size:.75rem;color:#7a869a;">out of 100</p>
+                </div>
+                {% if submission.scored_by_name %}
+                <div style="font-size:.78rem;color:#7a869a;text-align:center;margin-bottom:.6rem;">
+                    Scored by <strong style="color:#344054;">{{ submission.scored_by_name }}</strong><br>
+                    {{ submission.scored_at | timeformat if submission.scored_at else '' }}
+                </div>
+                {% endif %}
+                {% if submission.score_notes %}
+                <div style="background:#f8fafc;border-radius:8px;padding:.65rem;font-size:.8rem;color:#344054;border:1px solid #e8ecf2;margin-bottom:.75rem;">
+                    <i class="bi bi-chat-quote me-1 text-muted"></i>{{ submission.score_notes }}
+                </div>
+                {% endif %}
+                {% if current_user.is_qc_admin or current_user.is_it_admin %}
+                <hr style="border-color:#e8ecf2;margin:.75rem 0;">
+                <p style="font-size:.75rem;color:#7a869a;margin-bottom:.4rem;">Update Score</p>
+                {% endif %}
+                {% else %}
+                <div class="text-center mb-3">
+                    <div class="score-circle pending mx-auto" style="width:72px;height:72px;">
+                        <i class="bi bi-hourglass-split" style="font-size:1.2rem;opacity:.5;"></i>
+                    </div>
+                    <p style="margin:.4rem 0 0;font-size:.8rem;color:#7a869a;">Awaiting QC Score</p>
+                </div>
+                {% endif %}
+
+                {% if current_user.is_qc_admin or current_user.is_it_admin %}
+                <form method="POST" action="{{ url_for('checklist.score', submission_id=submission.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="score-input-wrap">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label style="font-size:.78rem;font-weight:700;color:#7a869a;text-transform:uppercase;letter-spacing:.05em;">Score</label>
+                            <span id="panelScoreDisplay" class="fw-800 fs-3"
+                                  style="color:{{ '#1cc88a' if (submission.score or 0) >= 90 else '#4e73df' if (submission.score or 0) >= 75 else '#f6c23e' if (submission.score or 0) >= 60 else '#adb5bd' }};">
+                                {{ submission.score if submission.score is not none else 0 }}
+                            </span>
+                        </div>
+                        <input type="range" id="panelScoreInput" name="score" min="0" max="100" step="1"
+                               value="{{ submission.score if submission.score is not none else 0 }}"
+                               class="form-range mb-3">
+                        <div class="d-flex justify-content-between" style="font-size:.7rem;color:#adb5bd;margin-top:-.75rem;margin-bottom:.6rem;">
+                            <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                        </div>
+                        <div class="qc-input-group" style="margin-bottom:.65rem;">
+                            <label>Notes (optional)</label>
+                            <textarea name="notes" rows="2"
+                                style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:.45rem .65rem;font-size:.8rem;resize:none;outline:none;">{{ submission.score_notes or '' }}</textarea>
+                        </div>
+                        <button type="submit" class="btn-qc-primary w-100 justify-content-center">
+                            <i class="bi bi-check2-circle me-1"></i>
+                            {{ 'Update Score' if submission.score is not none else 'Save Score' }}
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Submission Info -->
+        <div class="qc-card">
+            <div class="card-header-bar">
+                <h5 style="font-size:.9rem;"><i class="bi bi-info-circle me-2"></i>Submission Info</h5>
+            </div>
+            <div class="card-body-pad">
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">Branch</span>
+                    <span class="kpi-metric-value">{{ submission.branch_name }}</span>
+                </div>
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">Date</span>
+                    <span class="kpi-metric-value">{{ submission.submission_date }}</span>
+                </div>
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">Submitted By</span>
+                    <span class="kpi-metric-value">{{ submission.submitted_by_name }}</span>
+                </div>
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">Submitted At</span>
+                    <span class="kpi-metric-value" style="font-size:.8rem;">{{ submission.submission_date }} {{ submission.submitted_at | timeformat }}</span>
+                </div>
+                <div class="kpi-metric">
+                    <span class="kpi-metric-label">Compliance</span>
+                    <span class="kpi-metric-value"
+                          style="color:{{ '#1cc88a' if compliance_pct >= 80 else '#f6c23e' if compliance_pct >= 60 else '#e74a3b' }};">
+                        {{ compliance_pct }}% ({{ yes_count }}/{{ total }})
+                    </span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function () {
+    // Score slider
+    const si = document.getElementById('panelScoreInput');
+    const sd = document.getElementById('panelScoreDisplay');
+    if (si && sd) {
+        si.addEventListener('input', function () {
+            sd.textContent = this.value;
+            const v = parseInt(this.value);
+            sd.style.color = v >= 90 ? '#1cc88a' : v >= 75 ? '#4e73df' : v >= 60 ? '#f6c23e' : '#e74a3b';
+        });
+    }
+
+    // Comment photo upload
+    const dropZone = document.getElementById('panelCmtDropZone');
+    const input    = document.getElementById('panelCmtPhotoInput');
+    const preview  = document.getElementById('panelCmtPhotoPreview');
+    if (!dropZone || !input) return;
+
+    const MAX = 5;
+    let files = [];
+
+    dropZone.addEventListener('click', function (e) {
+        if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') input.click();
+    });
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        addFiles(e.dataTransfer.files);
+    });
+    input.addEventListener('change', () => addFiles(input.files));
+
+    function addFiles(list) {
+        for (const f of list) {
+            if (files.length >= MAX) { alert('Max ' + MAX + ' photos per comment.'); break; }
+            if (!f.type.startsWith('image/')) continue;
+            files.push(f);
+        }
+        render(); sync();
+    }
+
+    function render() {
+        preview.innerHTML = '';
+        preview.style.display = files.length ? 'flex' : 'none';
+        files.forEach((f, i) => {
+            const item = document.createElement('div');
+            item.className = 'cmt-preview-item';
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(f);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cmt-remove-btn';
+            btn.innerHTML = '<i class="bi bi-x"></i>';
+            btn.onclick = () => { files.splice(i, 1); render(); sync(); };
+            item.append(img, btn);
+            preview.appendChild(item);
+        });
+    }
+
+    function sync() {
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    }
+})();
+</script>
