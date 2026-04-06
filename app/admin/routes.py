@@ -15,6 +15,7 @@ def users():
 
     filter_role = request.args.get('role', '')
     filter_branch = request.args.get('branch_id', '')
+    filter_search = request.args.get('search', '').strip()
 
     query = '''
         SELECT u.*, b.name as branch_name
@@ -23,6 +24,10 @@ def users():
         WHERE 1=1
     '''
     params = []
+
+    if filter_search:
+        query += ' AND (u.full_name LIKE ? OR u.email LIKE ?)'
+        params.extend([f'%{filter_search}%', f'%{filter_search}%'])
 
     if filter_role:
         query += ' AND u.role = ?'

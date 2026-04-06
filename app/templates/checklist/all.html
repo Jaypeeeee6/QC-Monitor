@@ -10,15 +10,18 @@
 </div>
 
 <!-- Filter Bar -->
-<form method="GET" action="{{ url_for('checklist.all_submissions') }}">
+<form method="GET" action="{{ url_for('checklist.all_submissions') }}" id="checklistFilterForm">
     <div class="filter-bar">
+        <div class="filter-group filter-search-wrap">
+            <i class="bi bi-search filter-search-icon"></i>
+            <input type="text" name="search" value="{{ request.args.get('search', '') }}"
+                   placeholder="Search by branch manager…">
+        </div>
         <div class="filter-group">
-            <label>Date</label>
             <input type="date" name="date" value="{{ filter_date }}">
         </div>
         <div class="filter-group">
-            <label>Brand</label>
-            <select name="brand_id" onchange="this.form.submit()">
+            <select name="brand_id">
                 <option value="">All Brands</option>
                 {% for brand in brands %}
                 <option value="{{ brand.id }}" {{ 'selected' if filter_brand == brand.id|string }}>
@@ -28,7 +31,6 @@
             </select>
         </div>
         <div class="filter-group">
-            <label>Branch</label>
             <select name="branch_id">
                 <option value="">All Branches</option>
                 {% for b in branches %}
@@ -40,16 +42,16 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="filter-group" style="display:flex;align-items:flex-end;gap:0.4rem;">
-            <button type="submit" class="btn-qc-primary">
-                <i class="bi bi-funnel me-1"></i>Filter
-            </button>
-            <a href="{{ url_for('checklist.all_submissions') }}" class="btn btn-outline-secondary btn-sm">
-                Reset
-            </a>
+        <div class="filter-group">
+            <a href="{{ url_for('checklist.all_submissions') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
         </div>
     </div>
 </form>
+<script>
+    document.querySelectorAll('#checklistFilterForm select, #checklistFilterForm input[type="date"]').forEach(function(el) {
+        el.addEventListener('change', function() { document.getElementById('checklistFilterForm').submit(); });
+    });
+</script>
 
 <!-- Active filter chips -->
 {% if filter_brand or filter_branch %}

@@ -508,6 +508,7 @@ def all_submissions():
     filter_brand  = request.args.get('brand_id', '', type=str)
     filter_branch = request.args.get('branch_id', '', type=str)
     filter_date   = request.args.get('date', local_today())
+    filter_search = request.args.get('search', '').strip()
 
     brands = db.execute('SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name').fetchall()
     branches = db.execute(
@@ -535,6 +536,10 @@ def all_submissions():
         WHERE cs.submission_date = ?
     '''
     params = [filter_date]
+
+    if filter_search:
+        query += ' AND u.full_name LIKE ?'
+        params.append(f'%{filter_search}%')
 
     if filter_brand:
         query += ' AND b.brand_id = ?'

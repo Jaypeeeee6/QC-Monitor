@@ -20,11 +20,14 @@
 <!-- ===== Filter Bar ===== -->
 <form method="GET" action="{{ url_for('reports.inbox') }}" id="filterForm">
     <div class="filter-bar">
-
-        <!-- Branch dropdown -->
+        <div class="filter-group filter-search-wrap">
+            <i class="bi bi-search filter-search-icon"></i>
+            <input type="text" name="q" value="{{ search }}"
+                   placeholder="Search subject, sender, or keywords…"
+                   autocomplete="off">
+        </div>
         <div class="filter-group">
-            <label class="filter-label"><i class="bi bi-building me-1"></i>Branch</label>
-            <select name="branch_id" class="filter-select" onchange="this.form.submit()">
+            <select name="branch_id">
                 <option value="">All Branches</option>
                 {% for branch in branches %}
                 <option value="{{ branch.id }}" {{ 'selected' if branch_filter == branch.id|string }}>
@@ -33,37 +36,18 @@
                 {% endfor %}
             </select>
         </div>
-
-        <!-- Search -->
-        <div class="filter-group" style="flex:1;min-width:180px;">
-            <label class="filter-label"><i class="bi bi-search me-1"></i>Search</label>
-            <div style="position:relative;">
-                <input type="text" name="q" value="{{ search }}"
-                       placeholder="Subject, sender, or keywords…"
-                       class="filter-input" autocomplete="off">
-                {% if search %}
-                <button type="button" class="filter-clear-btn"
-                        onclick="document.querySelector('[name=q]').value='';this.form.submit();"
-                        title="Clear search">
-                    <i class="bi bi-x"></i>
-                </button>
-                {% endif %}
-            </div>
+        {% if branch_filter or search %}
+        <div class="filter-group">
+            <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
         </div>
-
-        <div class="filter-actions">
-            <button type="submit" class="btn-qc-primary px-3" style="height:38px;font-size:0.82rem;">
-                <i class="bi bi-funnel me-1"></i>Filter
-            </button>
-            {% if branch_filter or search %}
-            <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm px-3"
-               style="height:38px;display:flex;align-items:center;font-size:0.82rem;">
-                <i class="bi bi-x-circle me-1"></i>Clear
-            </a>
-            {% endif %}
-        </div>
+        {% endif %}
     </div>
 </form>
+<script>
+    document.querySelectorAll('#filterForm select').forEach(function(sel) {
+        sel.addEventListener('change', function() { this.closest('form').submit(); });
+    });
+</script>
 
 <!-- Active filter chips -->
 {% if branch_filter or search %}
@@ -170,74 +154,6 @@
 
 {% block scripts %}
 <style>
-/* ---- Filter bar ---- */
-.filter-bar {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-    padding: 1rem 1.25rem;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-}
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.filter-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.filter-select {
-    height: 38px;
-    padding: 0 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--body-bg);
-    color: var(--text-dark);
-    font-size: 0.85rem;
-    cursor: pointer;
-    min-width: 180px;
-}
-.filter-select:focus { outline: none; border-color: var(--gold); }
-.filter-input {
-    height: 38px;
-    width: 100%;
-    padding: 0 2rem 0 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--body-bg);
-    color: var(--text-dark);
-    font-size: 0.85rem;
-}
-.filter-input:focus { outline: none; border-color: var(--gold); }
-.filter-clear-btn {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-    font-size: 1rem;
-    line-height: 1;
-}
-.filter-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding-bottom: 0;
-    align-self: flex-end;
-}
-
 /* ---- Filter chips ---- */
 .filter-chip {
     display: inline-flex;

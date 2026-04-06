@@ -15,8 +15,12 @@
 <!-- Filter Bar -->
 <form method="GET" action="{{ url_for('admin.users') }}">
     <div class="filter-bar">
+        <div class="filter-group filter-search-wrap">
+            <i class="bi bi-search filter-search-icon"></i>
+            <input type="text" name="search" value="{{ request.args.get('search', '') }}"
+                   placeholder="Search name or email…">
+        </div>
         <div class="filter-group">
-            <label>Role</label>
             <select name="role">
                 <option value="">All Roles</option>
                 <option value="branch_manager" {{ 'selected' if filter_role == 'branch_manager' }}>Branch Manager</option>
@@ -26,7 +30,6 @@
             </select>
         </div>
         <div class="filter-group">
-            <label>Branch</label>
             <select name="branch_id">
                 <option value="">All Branches</option>
                 {% for b in branches %}
@@ -34,14 +37,16 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="filter-group" style="display:flex;align-items:flex-end;gap:0.5rem;">
-            <button type="submit" class="btn-qc-primary">
-                <i class="bi bi-funnel me-1"></i>Filter
-            </button>
+        <div class="filter-group">
             <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
         </div>
     </div>
 </form>
+<script>
+    document.querySelectorAll('.filter-bar select').forEach(function(sel) {
+        sel.addEventListener('change', function() { this.closest('form').submit(); });
+    });
+</script>
 
 <!-- Quick Role Legend -->
 <div class="d-flex gap-3 mt-3 mb-3 flex-wrap" style="font-size:0.8rem;color:#7a869a;">
