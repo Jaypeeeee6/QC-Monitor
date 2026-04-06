@@ -847,3 +847,27 @@ body {
 /* ===== UTILITIES ===== */
 .text-muted-sm { font-size: 0.8rem; color: var(--text-muted); }
 .fw-700 { font-weight: 700; }
+
+/* ===== BACK BUTTON ===== */
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    background: #fff;
+    border: 1.5px solid #e6ddc8;
+    border-radius: 8px;
+    padding: .42rem .95rem;
+    font-size: .84rem;
+    font-weight: 700;
+    color: #2d3748;
+    text-decoration: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    transition: border-color .15s, box-shadow .15s;
+}
+.btn-back:hover {
+    border-color: var(--gold);
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    color: #2d3748;
+    text-decoration: none;
+}
+.btn-back i { color: var(--gold); }

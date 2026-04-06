@@ -686,84 +686,20 @@ def create_item():
                            templates=templates, branches=branches, next_order=next_order)
 
 
-@checklist_bp.route('/items/<int:item_id>/edit', methods=['GET', 'POST'])
+@checklist_bp.route('/items/<int:item_id>/update-text', methods=['POST'])
 @login_required
 @role_required('qc_admin', 'it_admin')
-def edit_item(item_id):
+def update_item_text(item_id):
     db = get_db()
-    item = db.execute(
-        '''SELECT ci.*, ct.name AS template_name
-           FROM checklist_items ci
-           JOIN checklist_templates ct ON ct.id = ci.template_id
-           WHERE ci.id = ?''',
-        (item_id,)
-    ).fetchone()
-
-    if not item:
-        abort(404)
-
-    templates = db.execute('SELECT id, name FROM checklist_templates WHERE is_active = 1').fetchall()
-    branches  = db.execute('SELECT id, name FROM branches ORDER BY name').fetchall()
-
-    assigned_branch_ids = [
-        str(row['branch_id'])
-        for row in db.execute(
-            'SELECT branch_id FROM checklist_item_branches WHERE item_id = ?', (item_id,)
-        ).fetchall()
-    ]
-
-    if request.method == 'POST':
-        item_text     = request.form.get('item_text', '').strip()
-        template_id   = request.form.get('template_id', '')
-        display_order = request.form.get('display_order', '0').strip()
-        branch_scope  = request.form.get('branch_scope', 'all')
-        branch_ids    = request.form.getlist('branch_ids')
-
-        errors = []
-        if not item_text:
-            errors.append('Item text is required.')
-        if not template_id:
-            errors.append('Please select a checklist type.')
-        if branch_scope == 'specific' and not branch_ids:
-            errors.append('Please select at least one branch, or choose "All Branches".')
-
-        try:
-            order_int = int(display_order)
-        except ValueError:
-            order_int = 0
-
-        if errors:
-            for e in errors:
-                flash(e, 'danger')
-            return render_template('checklist/edit_item.html', item=item,
-                                   templates=templates, branches=branches,
-                                   assigned_branch_ids=assigned_branch_ids)
-
-        db.execute(
-            'UPDATE checklist_items SET item_text=?, template_id=?, display_order=? WHERE id=?',
-            (item_text, int(template_id), order_int, item_id)
-        )
-
-        # Replace branch assignments
-        db.execute('DELETE FROM checklist_item_branches WHERE item_id = ?', (item_id,))
-        if branch_scope == 'specific':
-            for bid in branch_ids:
-                db.execute(
-                    'INSERT INTO checklist_item_branches (item_id, branch_id) VALUES (?, ?)',
-                    (item_id, int(bid))
-                )
-
+    item_text = request.form.get('item_text', '').strip()
+    if not item_text:
+        flash('Item text cannot be empty.', 'danger')
+    else:
+        db.execute('UPDATE checklist_items SET item_text = ? WHERE id = ?', (item_text, item_id))
         db.commit()
         flash('Item updated.', 'success')
-        # Get branch and template from section
-        sec = db.execute('SELECT branch_id, template_id FROM checklist_sections WHERE id = ?', (item['section_id'],)).fetchone()
-        bid = sec['branch_id'] if sec else None
-        tid = sec['template_id'] if sec else int(template_id) if template_id else None
-        return redirect(url_for('checklist.manage_items', branch_id=bid, template_id=tid))
-
-    return render_template('checklist/edit_item.html', item=item,
-                           templates=templates, branches=branches,
-                           assigned_branch_ids=assigned_branch_ids)
+    branch_id, template_id = _get_item_branch(db, item_id)
+    return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=template_id))
 
 
 def _get_item_branch(db, item_id):
@@ -819,6 +755,21 @@ def delete_item(item_id):
     db.commit()
     flash('Item deleted.', 'success')
     return redirect(url_for('checklist.manage_items', branch_id=branch_id, template_id=template_id))
+
+
+@checklist_bp.route('/items/reorder', methods=['POST'])
+@login_required
+@role_required('qc_admin', 'it_admin')
+def reorder_items():
+    data = request.get_json(silent=True) or {}
+    item_ids = data.get('item_ids', [])
+    if not item_ids:
+        return jsonify({'ok': False, 'error': 'No item_ids provided'}), 400
+    db = get_db()
+    for idx, item_id in enumerate(item_ids):
+        db.execute('UPDATE checklist_items SET display_order = ? WHERE id = ?', (idx, item_id))
+    db.commit()
+    return jsonify({'ok': True})
 
 
 # ---------------------------------------------------------------------------

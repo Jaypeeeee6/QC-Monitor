@@ -4,12 +4,8 @@
 {% block content %}
 {% if selected_template %}
 <div style="margin-bottom:1rem;">
-  <a href="{{ url_for('admin.checklist_templates') }}"
-     style="display:inline-flex;align-items:center;gap:.45rem;background:#fff;
-            border:1.5px solid #e6ddc8;border-radius:8px;padding:.42rem .95rem;
-            font-size:.84rem;font-weight:700;color:#2d3748;text-decoration:none;
-            box-shadow:0 1px 4px rgba(0,0,0,.05);transition:border-color .15s,box-shadow .15s;">
-    <i class="bi bi-arrow-left" style="color:var(--gold);"></i>
+  <a href="{{ url_for('admin.checklist_templates') }}" class="btn-back">
+    <i class="bi bi-arrow-left"></i>
     Back to Checklist Templates
   </a>
 </div>
@@ -96,10 +92,16 @@
 .iinp{display:none;width:100%;border:1px solid var(--gold);border-radius:4px;
   padding:.2rem .42rem;font-size:.85rem}
 .bi-btn{background:none;border:none;padding:.17rem .36rem;border-radius:4px;
-  cursor:pointer;font-size:.73rem;font-weight:600}
+  cursor:pointer;font-size:.88rem}
 .bi-edit{color:var(--gold-deeper)}.bi-edit:hover{background:var(--gold-pale)}
 .bi-save{display:none;color:#15803d}.bi-save:hover{background:#f0fdf4}
 .bi-cancel{display:none;color:#888}.bi-cancel:hover{background:#f5f5f5}
+.bi-delete{color:#dc2626}.bi-delete:hover{background:#fef2f2}
+
+/* drag handle */
+.drag-handle{cursor:grab;color:#ccc;padding:.1rem .3rem;font-size:1rem;line-height:1;user-select:none}
+.drag-handle:hover{color:#aaa}
+.sortable-ghost{opacity:.4;background:var(--gold-pale)!important}
 
 /* add-item row */
 .add-row td{background:#fafaf8;padding:.38rem .75rem}
@@ -156,14 +158,6 @@
   {# ── Main area ── #}
   <div class="cl-main">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for cat, msg in messages %}
-        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
-          {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      {% endfor %}
-    {% endwith %}
-
     {% if selected_branch %}
     <div class="cl-topbar">
       <div>
@@ -203,7 +197,7 @@
           <span class="cl-sec-head-name" id="sname-{{ sec.id }}">{{ sec.name }}</span>
           <input type="text" class="cl-sec-input" id="sinp-{{ sec.id }}" value="{{ sec.name }}">
 
-          <button class="sa" id="sedit-{{ sec.id }}" onclick="startRen({{ sec.id }})">✏ Rename</button>
+          <button class="sa" id="sedit-{{ sec.id }}" onclick="startRen({{ sec.id }})"><i class="bi bi-pencil"></i> Rename</button>
           <button class="sa green" id="ssave-{{ sec.id }}" onclick="saveRen({{ sec.id }})">✔ Save</button>
           <button class="sa grey" id="scancel-{{ sec.id }}" onclick="cancelRen({{ sec.id }})">✖</button>
 
@@ -223,6 +217,7 @@
         <table class="cl-tbl">
           <thead>
             <tr>
+              <th style="width:28px;"></th>
               <th>#</th>
               <th>Description</th>
               <th style="width:65px;text-align:center">Status</th>
@@ -232,7 +227,8 @@
           <tbody>
             {% if sec_entry['items'] %}
               {% for item in sec_entry['items'] %}
-              <tr {% if not item.is_active %}class="row-off"{% endif %}>
+              <tr {% if not item.is_active %}class="row-off"{% endif %} data-id="{{ item.id }}">
+                <td class="drag-handle" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></td>
                 <td>{{ loop.index }}</td>
                 <td>
                   <span class="idsp" id="itxt-{{ item.id }}"
@@ -253,10 +249,10 @@
                 </td>
                 <td>
                   {% if item.is_active %}
-                  <button class="bi-btn bi-edit" id="iedit-{{ item.id }}" onclick="startEdit({{ item.id }})">✏ Edit</button>
-                  <button class="bi-btn bi-save" id="isave-{{ item.id }}" onclick="saveEdit({{ item.id }})">✔</button>
-                  <button class="bi-btn bi-cancel" id="icancel-{{ item.id }}" onclick="cancelEdit({{ item.id }})">✖</button>
-                  <form method="POST" action="{{ url_for('checklist.edit_item', item_id=item.id) }}"
+                  <button class="bi-btn bi-edit" id="iedit-{{ item.id }}" onclick="startEdit({{ item.id }})" title="Edit"><i class="bi bi-pencil"></i></button>
+                  <button class="bi-btn bi-save" id="isave-{{ item.id }}" onclick="saveEdit({{ item.id }})" title="Save"><i class="bi bi-check-lg"></i></button>
+                  <button class="bi-btn bi-cancel" id="icancel-{{ item.id }}" onclick="cancelEdit({{ item.id }})" title="Cancel"><i class="bi bi-x-lg"></i></button>
+                  <form method="POST" action="{{ url_for('checklist.update_item_text', item_id=item.id) }}"
                         id="iform-{{ item.id }}" style="display:none">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="item_text" id="iformtxt-{{ item.id }}">
@@ -264,18 +260,23 @@
                   {% else %}
                   <span style="font-size:.72rem;color:#ccc;font-style:italic">activate to edit</span>
                   {% endif %}
+                  <form method="POST" action="{{ url_for('checklist.delete_item', item_id=item.id) }}"
+                        style="display:inline" onsubmit="return confirm('Delete this item?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="bi-btn bi-delete" title="Delete"><i class="bi bi-trash"></i></button>
+                  </form>
                 </td>
               </tr>
               {% endfor %}
             {% else %}
-              <tr><td colspan="4" style="text-align:center;color:#ccc;font-style:italic;padding:.7rem">
+              <tr><td colspan="5" style="text-align:center;color:#ccc;font-style:italic;padding:.7rem">
                 No items — add one below.
               </td></tr>
             {% endif %}
           </tbody>
           <tfoot>
             <tr class="add-row">
-              <td colspan="4">
+              <td colspan="5">
                 <form method="POST" action="{{ url_for('checklist.create_item') }}" class="add-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="template_id" value="{{ template_id }}">
@@ -368,5 +369,28 @@ function confirmDelSec(name, count) {
     return confirm('Delete section "' + name + '"?\nIt has ' + count + ' item(s) — deactivate them first.');
   return confirm('Delete section "' + name + '"?');
 }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+document.querySelectorAll('.cl-tbl tbody').forEach(function(tbody) {
+  Sortable.create(tbody, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function() {
+      const rows = tbody.querySelectorAll('tr[data-id]');
+      const itemIds = Array.from(rows).map(r => parseInt(r.dataset.id));
+      fetch('{{ url_for("checklist.reorder_items") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ item_ids: itemIds })
+      });
+    }
+  });
+});
 </script>
 {% endblock %}

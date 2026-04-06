@@ -18,8 +18,8 @@
         <i class="bi bi-list"></i>
     </button>
     <a class="brand" href="/">
-        <i class="bi bi-clipboard2-pulse"></i>
-        QC Monitor
+        <img src="{{ url_for('static', filename='images/maa-logo.png') }}" alt="MAA Logo" style="height:36px;width:auto;object-fit:contain;margin-right:12px;">
+        QC Monitor System
     </a>
     <div class="ms-auto d-flex align-items-center gap-3">
         <div class="user-info-pill d-none d-md-flex">
@@ -62,7 +62,7 @@
                 <i class="bi bi-list-check"></i> All Checklists
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
-               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item', 'checklist.edit_item') }}">
+               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item') }}">
                 <i class="bi bi-journal-text"></i> Checklist Templates
             </a>
             <a href="{{ url_for('reports.inbox') }}"
@@ -99,7 +99,7 @@
                 <i class="bi bi-list-check"></i> All Checklists
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
-               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item', 'checklist.edit_item') }}">
+               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item') }}">
                 <i class="bi bi-journal-text"></i> Checklist Templates
             </a>
             <a href="{{ url_for('admin.branches') }}"

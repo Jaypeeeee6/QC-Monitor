@@ -156,9 +156,9 @@
     <div class="tmpl-card-header">
       <div class="tmpl-card-icon">
         {% if 'food' in tmpl.name|lower or 'safety' in tmpl.name|lower %}
-          <i class="bi bi-egg-fried" style="color:var(--gold);"></i>
+          <img src="{{ url_for('static', filename='images/icons/burger.png') }}" alt="Food Safety" style="width:26px;height:26px;object-fit:contain;">
         {% elif 'clean' in tmpl.name|lower %}
-          <i class="bi bi-bucket" style="color:var(--gold);"></i>
+          <img src="{{ url_for('static', filename='images/icons/cleaning.png') }}" alt="Cleaning" style="width:26px;height:26px;object-fit:contain;">
         {% else %}
           <i class="bi bi-clipboard-check" style="color:var(--gold);"></i>
         {% endif %}
@@ -189,7 +189,7 @@
 
     <div class="tmpl-card-footer">
       <a href="{{ url_for('checklist.manage_items', template_id=tmpl.id) }}" class="btn-tmpl-edit">
-        <i class="bi bi-pencil-square"></i> Edit Items
+        <i class="bi bi-pencil-square"></i> Edit Checklist
       </a>
 
       <form method="POST"
