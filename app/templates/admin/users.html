@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="bi bi-people me-2" style="color:#4e73df;"></i>User Management</h1>
+        <h1><i class="bi bi-people me-2" style="color:var(--gold);"></i>User Management</h1>
         <p class="subtitle">{{ users|length }} account{{ 's' if users|length != 1 }} found</p>
     </div>
     <a href="{{ url_for('admin.create_user') }}" class="btn-qc-primary">
@@ -42,6 +42,14 @@
         </div>
     </div>
 </form>
+
+<!-- Quick Role Legend -->
+<div class="d-flex gap-3 mt-3 mb-3 flex-wrap" style="font-size:0.8rem;color:#7a869a;">
+    <span><span class="role-badge it_admin" style="font-size:0.65rem;">IT Admin</span> — Full system access</span>
+    <span><span class="role-badge qc_admin" style="font-size:0.65rem;">QC Admin</span> — Score, comment, view all</span>
+    <span><span class="role-badge management" style="font-size:0.65rem;">Management</span> — View-only dashboard</span>
+    <span><span class="role-badge branch_manager" style="font-size:0.65rem;">Branch Manager</span> — Submit checklists</span>
+</div>
 
 <!-- User Table -->
 <div class="qc-card">
@@ -145,11 +153,4 @@
     {% endif %}
 </div>
 
-<!-- Quick Role Legend -->
-<div class="d-flex gap-3 mt-3 flex-wrap" style="font-size:0.8rem;color:#7a869a;">
-    <span><span class="role-badge it_admin" style="font-size:0.65rem;">IT Admin</span> — Full system access</span>
-    <span><span class="role-badge qc_admin" style="font-size:0.65rem;">QC Admin</span> — Score, comment, view all</span>
-    <span><span class="role-badge management" style="font-size:0.65rem;">Management</span> — View-only dashboard</span>
-    <span><span class="role-badge branch_manager" style="font-size:0.65rem;">Branch Manager</span> — Submit checklists</span>
-</div>
 {% endblock %}
