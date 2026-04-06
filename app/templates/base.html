@@ -41,6 +41,7 @@
 
     <!-- SIDEBAR -->
     <nav id="sidebar-wrapper">
+        <div class="sidebar-main">
         <div class="sidebar-heading">Menu</div>
 
         {% if current_user.role == 'it_admin' %}
@@ -130,11 +131,14 @@
             </a>
         {% endif %}
 
-        <div class="sidebar-divider"></div>
+        </div>
 
-        <a href="{{ url_for('auth.logout') }}" class="sidebar-item">
-            <i class="bi bi-box-arrow-left"></i> Logout
-        </a>
+        <div class="sidebar-bottom">
+            <div class="sidebar-divider"></div>
+            <a href="{{ url_for('auth.logout') }}" class="sidebar-item">
+                <i class="bi bi-box-arrow-left"></i> Logout
+            </a>
+        </div>
     </nav>
 
     <!-- PAGE CONTENT -->

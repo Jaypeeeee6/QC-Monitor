@@ -126,6 +126,8 @@ body {
     width: var(--sidebar-width);
     min-height: calc(100vh - var(--navbar-height));
     background: var(--dark-sidebar);
+    display: flex;
+    flex-direction: column;
     position: fixed;
     top: var(--navbar-height);
     left: 0;
@@ -137,6 +139,15 @@ body {
     border-right: 1px solid var(--dark-mid);
     scrollbar-width: thin;
     scrollbar-color: rgba(217,189,125,0.15) transparent;
+}
+
+.sidebar-main {
+    flex: 1;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding-bottom: 0.5rem;
 }
 
 #sidebar-wrapper::-webkit-scrollbar { width: 4px; }
