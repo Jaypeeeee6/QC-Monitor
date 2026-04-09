@@ -7,16 +7,6 @@
         <h1><i class="bi bi-send me-2" style="color:var(--gold);"></i>My Daily Reports</h1>
         <p class="subtitle">Reports you have sent to the QC Department</p>
     </div>
-    {% if today_report %}
-        <a href="{{ url_for('reports.view', report_id=today_report.id) }}"
-           class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-check-circle-fill me-1" style="color:#22c55e;"></i>Today's Report Sent
-        </a>
-    {% else %}
-        <a href="{{ url_for('reports.compose') }}" class="btn-qc-primary">
-            <i class="bi bi-envelope-plus me-1"></i>Send Today's Report
-        </a>
-    {% endif %}
 </div>
 
 <!-- Today's status banner -->
@@ -110,11 +100,6 @@
     <div class="empty-state">
         <i class="bi bi-envelope-open" style="font-size:3rem;color:var(--text-muted);"></i>
         <p style="margin-top:1rem;">No reports sent yet.</p>
-        {% if not today_report %}
-        <a href="{{ url_for('reports.compose') }}" class="btn-qc-primary mt-2">
-            <i class="bi bi-envelope-plus me-1"></i>Send Today's Report
-        </a>
-        {% endif %}
     </div>
 </div>
 {% endif %}

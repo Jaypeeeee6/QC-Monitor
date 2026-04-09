@@ -76,6 +76,10 @@
             <a href="{{ url_for('checklist.index') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('checklist.index', 'checklist.submit_today') }}">
                 <i class="bi bi-clipboard-check"></i> Daily Checklist
+                {% if sidebar_checklist_pending_today %}
+                <i class="bi bi-exclamation-triangle-fill text-warning ms-auto"
+                   title="Checklist not submitted today"></i>
+                {% endif %}
             </a>
             <a href="{{ url_for('checklist.history') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'checklist.history' }}">
@@ -85,6 +89,10 @@
             <a href="{{ url_for('reports.inbox') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('reports.inbox', 'reports.compose', 'reports.view') }}">
                 <i class="bi bi-envelope"></i> Daily Reports
+                {% if sidebar_report_pending_today %}
+                <i class="bi bi-exclamation-triangle-fill text-warning ms-auto"
+                   title="Daily report not submitted today"></i>
+                {% endif %}
             </a>
 
         {% elif current_user.role == 'qc_admin' %}

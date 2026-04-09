@@ -63,6 +63,46 @@ def create_app():
         ).fetchone()
         return User.from_db_row(row)
 
+    @app.context_processor
+    def inject_sidebar_submission_flags():
+        """Expose branch manager daily submission status for sidebar warnings."""
+        flags = {
+            'sidebar_checklist_pending_today': False,
+            'sidebar_report_pending_today': False,
+        }
+
+        if not current_user.is_authenticated or current_user.role != 'branch_manager':
+            return flags
+
+        from app.db import get_db
+        from app.utils import local_today
+
+        db = get_db()
+        today = local_today()
+
+        active_template_count = db.execute(
+            'SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1'
+        ).fetchone()[0]
+        submitted_template_count = db.execute(
+            '''SELECT COUNT(DISTINCT template_id)
+               FROM checklist_submissions
+               WHERE branch_id = ? AND submission_date = ?''',
+            (current_user.branch_id, today)
+        ).fetchone()[0]
+
+        has_today_report = db.execute(
+            '''SELECT 1 FROM daily_reports
+               WHERE submitted_by = ? AND report_date = ?
+               LIMIT 1''',
+            (current_user.id, today)
+        ).fetchone()
+
+        flags['sidebar_checklist_pending_today'] = (
+            active_template_count > 0 and submitted_template_count < active_template_count
+        )
+        flags['sidebar_report_pending_today'] = has_today_report is None
+        return flags
+
     @app.route('/')
     def index():
         if current_user.is_authenticated:
