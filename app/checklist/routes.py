@@ -154,12 +154,14 @@ def submit_today():
                                    existing=existing,
                                    today=today)
 
+        did_submit = False
         for tmpl in templates:
             if existing[tmpl['id']] is not None:
                 continue
             items = items_by_template.get(tmpl['id'], [])
             if not items:
                 continue
+            did_submit = True
             cursor = db.execute(
                 '''INSERT INTO checklist_submissions
                    (branch_id, submitted_by, template_id, submission_date, submitted_at)
@@ -173,6 +175,20 @@ def submit_today():
                        VALUES (?, ?, ?, ?)''',
                     (submission_id, r['item_id'], r['answer'], r['reason'])
                 )
+
+        if not did_submit:
+            flash(
+                'No checklist items are configured for your pending templates. Contact your QC Admin.',
+                'warning',
+            )
+            return render_template(
+                'checklist/submit_all.html',
+                templates=templates,
+                sections_by_template=sections_by_template,
+                items_by_template=items_by_template,
+                existing=existing,
+                today=today,
+            )
 
         db.commit()
         flash('Daily checklist submitted successfully!', 'success')

@@ -55,7 +55,8 @@
   box-shadow:0 2px 6px rgba(0,0,0,.06)}
 .cl-submit-btn{background:var(--gold);color:var(--dark-bg);border:none;border-radius:7px;
   padding:.65rem 2rem;font-size:.95rem;font-weight:700;cursor:pointer;transition:background .15s}
-.cl-submit-btn:hover{background:var(--gold-dark);color:var(--dark-bg)}
+.cl-submit-btn:hover:not(:disabled){background:var(--gold-dark);color:var(--dark-bg)}
+.cl-submit-btn:disabled{opacity:.55;cursor:not-allowed}
 .cl-progress-text{font-size:.85rem;color:#666}
 </style>
 
@@ -155,8 +156,13 @@
     {% for tmpl in templates %}{% if existing[tmpl.id] is none %}{% set has_pending.v = true %}{% endif %}{% endfor %}
     {% if has_pending.v %}
     <div class="cl-submit-bar">
+      {% if any_items.v %}
       <span class="cl-progress-text" id="progress-text">Checking items…</span>
       <button type="submit" class="cl-submit-btn">Submit Daily Checklist</button>
+      {% else %}
+      <span class="cl-progress-text">Your checklist template has no items yet. Contact your QC Admin.</span>
+      <button type="button" class="cl-submit-btn" disabled aria-disabled="true">Submit Daily Checklist</button>
+      {% endif %}
     </div>
     {% endif %}
 
