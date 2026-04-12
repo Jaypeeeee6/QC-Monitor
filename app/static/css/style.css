@@ -273,6 +273,14 @@ body {
     padding: 1.25rem;
 }
 
+/* Branch dashboard — today snapshot cards (header + body breathing room) */
+.qc-card.branch-snapshot-card .card-header-bar {
+    padding: 1.15rem 1.45rem;
+}
+.qc-card.branch-snapshot-card .branch-snapshot-card__body {
+    padding: 1.35rem 1.45rem 1.5rem;
+}
+
 /* ===== KPI STAT CARDS ===== */
 .stat-card {
     background: #fff;
@@ -720,6 +728,38 @@ body {
 }
 
 .btn-qc-primary:active { transform: translateY(0); }
+
+/* Inactive tab / secondary pill — matches card borders & gold accents */
+.btn.btn-qc-tab,
+a.btn.btn-qc-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+    background: #fff;
+    color: var(--text-mid);
+    border: 1.5px solid #e6ddc8;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.btn.btn-qc-tab:hover,
+a.btn.btn-qc-tab:hover {
+    background: var(--gold-light);
+    border-color: var(--gold);
+    color: var(--text-dark);
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.btn.btn-qc-tab:focus-visible,
+a.btn.btn-qc-tab:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
 
 .btn-qc-success {
     background: #22c55e;

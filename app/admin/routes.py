@@ -1,10 +1,10 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 
 from app.admin import admin_bp
 from app.db import get_db
-from app.utils import role_required
+from app.utils import role_required, local_today
 
 
 @admin_bp.route('/users')
@@ -251,6 +251,199 @@ def branches():
            GROUP BY b.id ORDER BY br.name, b.name'''
     ).fetchall()
     return render_template('admin/branches.html', brands=brands, branches=all_branches)
+
+
+@admin_bp.route('/branches/<int:branch_id>/dashboard')
+@login_required
+@role_required('it_admin', 'qc_admin')
+def branch_dashboard(branch_id):
+    db = get_db()
+    today = local_today()
+    tab = request.args.get('tab', 'snapshot')
+    if tab not in ('snapshot', 'checklists', 'reports'):
+        tab = 'snapshot'
+
+    branch = db.execute(
+        '''SELECT b.*, br.name AS brand_name
+           FROM branches b
+           LEFT JOIN brands br ON br.id = b.brand_id
+           WHERE b.id = ?''',
+        (branch_id,)
+    ).fetchone()
+    if not branch:
+        abort(404)
+
+    # --- Today snapshot data ---
+    checklist_today = db.execute(
+        '''SELECT cs.id, cs.submission_date, cs.submitted_at,
+                  u.full_name AS submitted_by_name,
+                  COUNT(cr.id) AS total,
+                  SUM(CASE WHEN cr.answer = 'yes' THEN 1 ELSE 0 END) AS yes_count,
+                  s.score
+           FROM checklist_submissions cs
+           JOIN users u ON u.id = cs.submitted_by
+           LEFT JOIN checklist_responses cr ON cr.submission_id = cs.id
+           LEFT JOIN scores s ON s.submission_id = cs.id
+           WHERE cs.branch_id = ? AND cs.submission_date = ?
+           GROUP BY cs.id
+           ORDER BY cs.submitted_at DESC
+           LIMIT 1''',
+        (branch_id, today)
+    ).fetchone()
+
+    report_today = db.execute(
+        '''SELECT dr.id, dr.report_date, dr.created_at, dr.subject,
+                  dr.is_read,
+                  u.full_name AS submitted_by_name,
+                  (SELECT COUNT(*) FROM report_replies rr WHERE rr.report_id = dr.id) AS reply_count
+           FROM daily_reports dr
+           JOIN users u ON u.id = dr.submitted_by
+           WHERE dr.branch_id = ? AND dr.report_date = ?
+           ORDER BY dr.created_at DESC
+           LIMIT 1''',
+        (branch_id, today)
+    ).fetchone()
+
+    active_template_count = db.execute(
+        'SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1'
+    ).fetchone()[0]
+    submitted_template_count = db.execute(
+        '''SELECT COUNT(DISTINCT template_id)
+           FROM checklist_submissions
+           WHERE branch_id = ? AND submission_date = ?''',
+        (branch_id, today)
+    ).fetchone()[0]
+
+    checklist_missing_today = (
+        active_template_count > 0 and submitted_template_count < active_template_count
+    )
+    report_missing_today = report_today is None
+
+    # --- Checklist history ---
+    checklist_from = request.args.get('c_from', '')
+    checklist_to = request.args.get('c_to', '')
+    checklist_user = request.args.get('c_user', type=int)
+    checklist_page = request.args.get('c_page', 1, type=int)
+    checklist_per_page = 12
+    checklist_offset = max(checklist_page - 1, 0) * checklist_per_page
+
+    checklist_where = ['cs.branch_id = ?']
+    checklist_params = [branch_id]
+
+    if checklist_from:
+        checklist_where.append('cs.submission_date >= ?')
+        checklist_params.append(checklist_from)
+    if checklist_to:
+        checklist_where.append('cs.submission_date <= ?')
+        checklist_params.append(checklist_to)
+    if checklist_user is not None:
+        checklist_where.append('cs.submitted_by = ?')
+        checklist_params.append(checklist_user)
+
+    checklist_where_sql = ' AND '.join(checklist_where)
+    checklist_count = db.execute(
+        f'''SELECT COUNT(*) FROM checklist_submissions cs
+            WHERE {checklist_where_sql}''',
+        checklist_params
+    ).fetchone()[0]
+
+    checklist_rows = db.execute(
+        f'''SELECT cs.id, cs.submission_date, cs.submitted_at,
+                   u.full_name AS submitted_by_name,
+                   COUNT(cr.id) AS total,
+                   SUM(CASE WHEN cr.answer = 'yes' THEN 1 ELSE 0 END) AS yes_count,
+                   s.score,
+                   (SELECT COUNT(*) FROM comments c WHERE c.submission_id = cs.id) AS comment_count
+            FROM checklist_submissions cs
+            JOIN users u ON u.id = cs.submitted_by
+            LEFT JOIN checklist_responses cr ON cr.submission_id = cs.id
+            LEFT JOIN scores s ON s.submission_id = cs.id
+            WHERE {checklist_where_sql}
+            GROUP BY cs.id
+            ORDER BY cs.submission_date DESC, cs.submitted_at DESC
+            LIMIT ? OFFSET ?''',
+        checklist_params + [checklist_per_page, checklist_offset]
+    ).fetchall()
+    checklist_total_pages = (checklist_count + checklist_per_page - 1) // checklist_per_page
+
+    # --- Report history ---
+    report_from = request.args.get('r_from', '')
+    report_to = request.args.get('r_to', '')
+    report_user = request.args.get('r_user', type=int)
+    report_q = request.args.get('r_q', '').strip()
+    report_page = request.args.get('r_page', 1, type=int)
+    report_per_page = 12
+    report_offset = max(report_page - 1, 0) * report_per_page
+
+    report_where = ['dr.branch_id = ?']
+    report_params = [branch_id]
+
+    if report_from:
+        report_where.append('dr.report_date >= ?')
+        report_params.append(report_from)
+    if report_to:
+        report_where.append('dr.report_date <= ?')
+        report_params.append(report_to)
+    if report_user is not None:
+        report_where.append('dr.submitted_by = ?')
+        report_params.append(report_user)
+    if report_q:
+        report_where.append('(dr.subject LIKE ? OR dr.body LIKE ?)')
+        like = f'%{report_q}%'
+        report_params.extend([like, like])
+
+    report_where_sql = ' AND '.join(report_where)
+    report_count = db.execute(
+        f'''SELECT COUNT(*) FROM daily_reports dr
+            WHERE {report_where_sql}''',
+        report_params
+    ).fetchone()[0]
+
+    report_rows = db.execute(
+        f'''SELECT dr.id, dr.report_date, dr.created_at, dr.subject, dr.is_read,
+                   u.full_name AS submitted_by_name,
+                   (SELECT COUNT(*) FROM report_replies rr WHERE rr.report_id = dr.id) AS reply_count
+            FROM daily_reports dr
+            JOIN users u ON u.id = dr.submitted_by
+            WHERE {report_where_sql}
+            ORDER BY dr.report_date DESC, dr.created_at DESC
+            LIMIT ? OFFSET ?''',
+        report_params + [report_per_page, report_offset]
+    ).fetchall()
+    report_total_pages = (report_count + report_per_page - 1) // report_per_page
+
+    branch_managers = db.execute(
+        '''SELECT id, full_name
+           FROM users
+           WHERE role = 'branch_manager' AND is_active = 1 AND branch_id = ?
+           ORDER BY full_name''',
+        (branch_id,)
+    ).fetchall()
+
+    return render_template(
+        'admin/branch_dashboard.html',
+        tab=tab,
+        branch=branch,
+        today=today,
+        checklist_today=checklist_today,
+        report_today=report_today,
+        checklist_missing_today=checklist_missing_today,
+        report_missing_today=report_missing_today,
+        branch_managers=branch_managers,
+        checklist_rows=checklist_rows,
+        checklist_from=checklist_from,
+        checklist_to=checklist_to,
+        checklist_user=checklist_user,
+        checklist_page=checklist_page,
+        checklist_total_pages=checklist_total_pages,
+        report_rows=report_rows,
+        report_from=report_from,
+        report_to=report_to,
+        report_user=report_user,
+        report_q=report_q,
+        report_page=report_page,
+        report_total_pages=report_total_pages,
+    )
 
 
 @admin_bp.route('/brands/create', methods=['POST'])

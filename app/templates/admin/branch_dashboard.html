@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% block title %}Branch Dashboard — {{ branch.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1><i class="bi bi-building me-2" style="color:var(--gold);"></i>{{ branch.name }}</h1>
+        <p class="subtitle">
+            {{ branch.brand_name or 'No Brand' }}
+            {% if branch.location %} &mdash; {{ branch.location }}{% endif %}
+        </p>
+    </div>
+    <a href="{{ url_for('admin.branches') }}" class="btn-back">
+        <i class="bi bi-arrow-left me-1"></i>Back to Branches
+    </a>
+</div>
+
+<div class="qc-card mb-3">
+    <div style="padding:1rem 1.2rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="{{ url_for('admin.branch_dashboard', branch_id=branch.id, tab='snapshot') }}"
+           class="btn btn-sm {{ 'btn-qc-primary' if tab == 'snapshot' else 'btn-qc-tab' }}">
+            Today Snapshot
+        </a>
+        <a href="{{ url_for('admin.branch_dashboard', branch_id=branch.id, tab='checklists') }}"
+           class="btn btn-sm {{ 'btn-qc-primary' if tab == 'checklists' else 'btn-qc-tab' }}">
+            Checklist History
+        </a>
+        <a href="{{ url_for('admin.branch_dashboard', branch_id=branch.id, tab='reports') }}"
+           class="btn btn-sm {{ 'btn-qc-primary' if tab == 'reports' else 'btn-qc-tab' }}">
+            Report History
+        </a>
+    </div>
+</div>
+
+{% if tab == 'snapshot' %}
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="qc-card branch-snapshot-card h-100">
+            <div class="card-header-bar d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <span><i class="bi bi-clipboard-check me-2"></i>Checklist Status ({{ today }})</span>
+                {% if checklist_missing_today %}
+                <span class="status-pill pending">Missing</span>
+                {% else %}
+                <span class="status-pill scored">Submitted</span>
+                {% endif %}
+            </div>
+            <div class="card-body-pad branch-snapshot-card__body">
+                {% if checklist_today %}
+                    {% set total = checklist_today.total or 0 %}
+                    {% set yes = checklist_today.yes_count or 0 %}
+                    {% set pct = ((yes / total) * 100) | round(1) if total else 0 %}
+                    <p class="mb-1"><strong>Submitted by:</strong> {{ checklist_today.submitted_by_name }}</p>
+                    <p class="mb-1"><strong>Time:</strong> {{ checklist_today.submitted_at|timeformat }}</p>
+                    <p class="mb-1"><strong>Compliance:</strong> {{ pct }}%</p>
+                    <p class="mb-3"><strong>QC Score:</strong> {{ checklist_today.score ~ '/100' if checklist_today.score is not none else 'Pending' }}</p>
+                    <a href="{{ url_for('checklist.view', submission_id=checklist_today.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i>View Checklist
+                    </a>
+                {% else %}
+                    <p class="mb-0" style="color:var(--text-muted);">No checklist submission found for today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="qc-card branch-snapshot-card h-100">
+            <div class="card-header-bar d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <span><i class="bi bi-envelope me-2"></i>Daily Report Status ({{ today }})</span>
+                {% if report_missing_today %}
+                <span class="status-pill pending">Missing</span>
+                {% else %}
+                <span class="status-pill scored">Submitted</span>
+                {% endif %}
+            </div>
+            <div class="card-body-pad branch-snapshot-card__body">
+                {% if report_today %}
+                    <p class="mb-1"><strong>Submitted by:</strong> {{ report_today.submitted_by_name }}</p>
+                    <p class="mb-1"><strong>Time:</strong> {{ report_today.created_at|timeformat }}</p>
+                    <p class="mb-1"><strong>Subject:</strong> {{ report_today.subject }}</p>
+                    <p class="mb-3"><strong>Replies:</strong> {{ report_today.reply_count }}</p>
+                    <a href="{{ url_for('reports.view', report_id=report_today.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i>View Report
+                    </a>
+                {% else %}
+                    <p class="mb-0" style="color:var(--text-muted);">No daily report found for today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if tab == 'checklists' %}
+<div class="qc-card mb-3">
+    <form method="GET" action="{{ url_for('admin.branch_dashboard', branch_id=branch.id) }}">
+        <input type="hidden" name="tab" value="checklists">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" name="c_from" value="{{ checklist_from }}">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" name="c_to" value="{{ checklist_to }}">
+            </div>
+            <div class="filter-group">
+                <label>Submitted By</label>
+                <select name="c_user">
+                    <option value="">All Managers</option>
+                    {% for u in branch_managers %}
+                    <option value="{{ u.id }}" {{ 'selected' if checklist_user == u.id }}>{{ u.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Apply</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="qc-card">
+    {% if checklist_rows %}
+    <div style="overflow-x:auto;">
+        <table class="qc-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Submitted By</th>
+                    <th>Time</th>
+                    <th>Compliance</th>
+                    <th>QC Score</th>
+                    <th>Comments</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in checklist_rows %}
+                {% set total = row.total or 0 %}
+                {% set yes = row.yes_count or 0 %}
+                {% set pct = ((yes / total) * 100) | round(1) if total else 0 %}
+                <tr>
+                    <td><strong>{{ row.submission_date }}</strong></td>
+                    <td>{{ row.submitted_by_name }}</td>
+                    <td>{{ row.submitted_at|timeformat }}</td>
+                    <td>{{ pct }}%</td>
+                    <td>{{ row.score ~ '/100' if row.score is not none else 'Pending' }}</td>
+                    <td>{{ row.comment_count }}</td>
+                    <td>
+                        <a href="{{ url_for('checklist.view', submission_id=row.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-search"></i>
+        <p>No checklist history found for these filters.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if checklist_total_pages > 1 %}
+<div class="d-flex justify-content-center mt-3 gap-2 flex-wrap">
+    {% for p in range(1, checklist_total_pages + 1) %}
+    <a href="{{ url_for('admin.branch_dashboard', branch_id=branch.id, tab='checklists', c_from=checklist_from, c_to=checklist_to, c_user=checklist_user, c_page=p) }}"
+       class="btn btn-sm {{ 'btn-qc-primary' if p == checklist_page else 'btn-outline-secondary' }}">{{ p }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
+{% if tab == 'reports' %}
+<div class="qc-card mb-3">
+    <form method="GET" action="{{ url_for('admin.branch_dashboard', branch_id=branch.id) }}">
+        <input type="hidden" name="tab" value="reports">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>From</label>
+                <input type="date" name="r_from" value="{{ report_from }}">
+            </div>
+            <div class="filter-group">
+                <label>To</label>
+                <input type="date" name="r_to" value="{{ report_to }}">
+            </div>
+            <div class="filter-group">
+                <label>Submitted By</label>
+                <select name="r_user">
+                    <option value="">All Managers</option>
+                    {% for u in branch_managers %}
+                    <option value="{{ u.id }}" {{ 'selected' if report_user == u.id }}>{{ u.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Search</label>
+                <input type="text" name="r_q" value="{{ report_q }}" placeholder="Subject/body">
+            </div>
+            <div class="filter-group">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Apply</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="qc-card">
+    {% if report_rows %}
+    <div style="overflow-x:auto;">
+        <table class="qc-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Submitted By</th>
+                    <th>Time</th>
+                    <th>Subject</th>
+                    <th>Replies</th>
+                    <th>Read</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_rows %}
+                <tr>
+                    <td><strong>{{ row.report_date }}</strong></td>
+                    <td>{{ row.submitted_by_name }}</td>
+                    <td>{{ row.created_at|timeformat }}</td>
+                    <td>{{ row.subject }}</td>
+                    <td>{{ row.reply_count }}</td>
+                    <td>{{ 'Yes' if row.is_read else 'No' }}</td>
+                    <td>
+                        <a href="{{ url_for('reports.view', report_id=row.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-search"></i>
+        <p>No report history found for these filters.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if report_total_pages > 1 %}
+<div class="d-flex justify-content-center mt-3 gap-2 flex-wrap">
+    {% for p in range(1, report_total_pages + 1) %}
+    <a href="{{ url_for('admin.branch_dashboard', branch_id=branch.id, tab='reports', r_from=report_from, r_to=report_to, r_user=report_user, r_q=report_q, r_page=p) }}"
+       class="btn btn-sm {{ 'btn-qc-primary' if p == report_page else 'btn-outline-secondary' }}">{{ p }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

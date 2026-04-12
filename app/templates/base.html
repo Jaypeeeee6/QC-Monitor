@@ -47,7 +47,7 @@
                 <i class="bi bi-people"></i> User Management
             </a>
             <a href="{{ url_for('admin.branches') }}"
-               class="sidebar-item {{ 'active' if request.endpoint in ('admin.branches',) }}">
+               class="sidebar-item {{ 'active' if request.endpoint in ('admin.branches', 'admin.branch_dashboard') }}">
                 <i class="bi bi-building"></i> Branches
             </a>
             <div class="sidebar-divider"></div>
@@ -109,7 +109,7 @@
                 <i class="bi bi-journal-text"></i> Checklist Templates
             </a>
             <a href="{{ url_for('admin.branches') }}"
-               class="sidebar-item {{ 'active' if request.endpoint == 'admin.branches' }}">
+               class="sidebar-item {{ 'active' if request.endpoint in ('admin.branches', 'admin.branch_dashboard') }}">
                 <i class="bi bi-building"></i> Branches
             </a>
             <a href="{{ url_for('reports.inbox') }}"

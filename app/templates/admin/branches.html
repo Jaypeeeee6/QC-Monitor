@@ -24,6 +24,11 @@
 .btn-del{background:none;border:1px solid #f5c2c2;color:#c62828;border-radius:5px;
   padding:.18rem .55rem;font-size:.75rem;cursor:pointer;font-weight:600}
 .btn-del:hover{background:#fce4ec}
+.btn-open{
+  border:1px solid #c9b27a;background:#fff7e6;color:#6b4f1d;border-radius:6px;
+  padding:.2rem .6rem;font-size:.74rem;font-weight:700;text-decoration:none
+}
+.btn-open:hover{background:#fff1d2;color:#5a4319}
 
 /* ── branch rows ── */
 .branch-row{display:flex;align-items:center;gap:.6rem;padding:.5rem 1.1rem .5rem 2rem;
@@ -103,6 +108,9 @@
               {% if b.manager_count > 0 %}
                 <span class="mgr-badge">{{ b.manager_count }} manager{{ 's' if b.manager_count > 1 }}</span>
               {% endif %}
+              <a href="{{ url_for('admin.branch_dashboard', branch_id=b.id) }}" class="btn-open">
+                <i class="bi bi-clock-history me-1"></i>History
+              </a>
               <form method="POST" action="{{ url_for('admin.delete_branch', branch_id=b.id) }}"
                     style="margin:0" onsubmit="return confirm('Delete branch {{ b.name }}?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -129,6 +137,9 @@
             <span class="branch-dot" style="background:#ccc"></span>
             <span class="branch-name">{{ b.name }}</span>
             {% if b.location %}<span class="branch-meta">{{ b.location }}</span>{% endif %}
+            <a href="{{ url_for('admin.branch_dashboard', branch_id=b.id) }}" class="btn-open">
+              <i class="bi bi-clock-history me-1"></i>History
+            </a>
             <form method="POST" action="{{ url_for('admin.delete_branch', branch_id=b.id) }}"
                   style="margin:0" onsubmit="return confirm('Delete branch {{ b.name }}?')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
