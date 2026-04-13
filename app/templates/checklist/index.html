@@ -42,7 +42,18 @@
   {% for tmpl in templates %}{% if status[tmpl.id] %}{% set _ = done_list.append(tmpl) %}{% endif %}{% endfor %}
   {% set all_done = done_list|length == templates|length and templates|length > 0 %}
 
-  {% if all_done %}
+  {% if not templates %}
+    {# ── Nothing assigned to this branch yet ── #}
+    <i class="bi bi-clipboard2-check cl-index-icon"></i>
+    <h1 class="cl-index-title">Daily Checklist</h1>
+    <p class="cl-index-sub">
+      {{ current_user.branch_name }} &mdash; {{ today }}
+    </p>
+    <p style="margin-top:.5rem;font-size:.92rem;color:var(--text-light);max-width:28rem;margin-left:auto;margin-right:auto;line-height:1.5">
+      <i class="bi bi-info-circle me-1"></i>No checklists are configured for your branch yet. Contact your QC Admin when you are ready to begin.
+    </p>
+
+  {% elif all_done %}
     {# ── All submitted ── #}
     <div class="cl-done-card">
       <i class="bi bi-patch-check-fill done-icon"></i>
@@ -86,12 +97,6 @@
         <span style="font-size:.8rem;opacity:.8;font-weight:400">({{ done_list|length }}/{{ templates|length }} done)</span>
       {% endif %}
     </a>
-
-    {% if not templates %}
-    <p style="margin-top:2rem;font-size:.88rem;color:var(--text-light);">
-      <i class="bi bi-info-circle me-1"></i>No checklists configured yet. Contact your QC Admin.
-    </p>
-    {% endif %}
   {% endif %}
 
 </div>

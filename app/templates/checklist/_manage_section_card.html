@@ -1,0 +1,108 @@
+{% set sec = sec_entry['section'] %}
+<div class="cl-section-card" id="sec-{{ sec.id }}">
+
+  <div class="cl-sec-head">
+    <span class="cl-sec-head-name" id="sname-{{ sec.id }}">{{ sec.name }}</span>
+    {% if sec['overrides_section_id'] %}
+    <span class="cl-badge-inherit" style="margin-left:.35rem">Replaces inherited section</span>
+    {% endif %}
+    <input type="text" class="cl-sec-input" id="sinp-{{ sec.id }}" value="{{ sec.name }}">
+
+    <button class="sa" id="sedit-{{ sec.id }}" onclick="startRen({{ sec.id }})"><i class="bi bi-pencil"></i> Rename</button>
+    <button class="sa green" id="ssave-{{ sec.id }}" onclick="saveRen({{ sec.id }})">✔ Save</button>
+    <button class="sa grey" id="scancel-{{ sec.id }}" onclick="cancelRen({{ sec.id }})">✖</button>
+
+    <form method="POST" action="{{ url_for('checklist.delete_section', section_id=sec.id) }}"
+          style="margin:0" onsubmit="return confirmDelSec('{{ sec.name }}', {{ sec_entry['items']|length }})">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="sa red">🗑 Delete</button>
+    </form>
+
+    <form method="POST" action="{{ url_for('checklist.edit_section', section_id=sec.id) }}"
+          id="sform-{{ sec.id }}" style="display:none">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="name" id="sformname-{{ sec.id }}">
+    </form>
+  </div>
+
+  <table class="cl-tbl">
+    <thead>
+      <tr>
+        <th style="width:28px;"></th>
+        <th>#</th>
+        <th>Description</th>
+        <th style="width:65px;text-align:center">Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if sec_entry['items'] %}
+        {% for item in sec_entry['items'] %}
+        <tr {% if not item.is_active %}class="row-off"{% endif %} data-id="{{ item.id }}">
+          <td class="drag-handle" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></td>
+          <td>{{ loop.index }}</td>
+          <td>
+            <span class="idsp" id="itxt-{{ item.id }}"
+                  {% if item.is_active %}onclick="startEdit({{ item.id }})"{% endif %}>
+              {{ item.item_text }}
+            </span>
+            {% if not item.is_active %}<span class="inactive-pip">Off</span>{% endif %}
+            {% if item.is_active %}
+            <input type="text" class="iinp" id="iinp-{{ item.id }}" value="{{ item.item_text }}">
+            {% endif %}
+          </td>
+          <td style="text-align:center">
+            <form method="POST" action="{{ url_for('checklist.toggle_item', item_id=item.id) }}" style="margin:0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="bi-btn" title="{{ 'Deactivate' if item.is_active else 'Activate' }}"
+                      style="font-size:.88rem">{{ '🟢' if item.is_active else '🔴' }}</button>
+            </form>
+          </td>
+          <td>
+            {% if item.is_active %}
+            <button class="bi-btn bi-edit" id="iedit-{{ item.id }}" onclick="startEdit({{ item.id }})" title="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="bi-btn bi-save" id="isave-{{ item.id }}" onclick="saveEdit({{ item.id }})" title="Save"><i class="bi bi-check-lg"></i></button>
+            <button class="bi-btn bi-cancel" id="icancel-{{ item.id }}" onclick="cancelEdit({{ item.id }})" title="Cancel"><i class="bi bi-x-lg"></i></button>
+            <form method="POST" action="{{ url_for('checklist.update_item_text', item_id=item.id) }}"
+                  id="iform-{{ item.id }}" style="display:none">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="item_text" id="iformtxt-{{ item.id }}">
+            </form>
+            {% else %}
+            <span style="font-size:.72rem;color:#ccc;font-style:italic">activate to edit</span>
+            {% endif %}
+            <form method="POST" action="{{ url_for('checklist.delete_item', item_id=item.id) }}"
+                  style="display:inline" onsubmit="return confirm('Delete this item?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="bi-btn bi-delete" title="Delete"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="5" style="text-align:center;color:#ccc;font-style:italic;padding:.7rem">
+          No items — add one below.
+        </td></tr>
+      {% endif %}
+    </tbody>
+    <tfoot>
+      <tr class="add-row">
+        <td colspan="5">
+          <form method="POST" action="{{ url_for('checklist.create_item') }}" class="add-form js-ajax-add-item">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="layer_template_id" value="{{ sec.template_id }}">
+            <input type="hidden" name="root_template_id" value="{{ root_template_id }}">
+            <input type="hidden" name="section_id" value="{{ sec.id }}">
+            <input type="hidden" name="branch_scope" value="all">
+            <input type="hidden" name="branch_id_redirect" value="{{ selected_branch_id }}">
+            {% if company_wide %}<input type="hidden" name="company_wide" value="1">{% endif %}
+            {% if all_brand %}<input type="hidden" name="all_brand" value="1">{% endif %}
+            <input type="text" name="item_text" class="add-inp"
+                   placeholder="Add checklist item…" required>
+            <button type="submit" class="add-btn">+ Add</button>
+          </form>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>

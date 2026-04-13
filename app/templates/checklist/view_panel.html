@@ -45,10 +45,10 @@
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
         <h5 style="margin:0;font-weight:800;color:#1a2744;">
-            {{ submission.branch_name }}
+            {{ submission.template_display_name or 'Checklist' }}
         </h5>
         <p style="margin:.2rem 0 0;font-size:.82rem;color:#7a869a;">
-            {{ submission.submission_date }} &mdash;
+            {{ submission.branch_name }} &mdash; {{ submission.submission_date }} &mdash;
             Submitted by <strong>{{ submission.submitted_by_name }}</strong>
             at {{ submission.submitted_at | timeformat }}
         </p>

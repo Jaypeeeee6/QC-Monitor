@@ -729,6 +729,38 @@ body {
 
 .btn-qc-primary:active { transform: translateY(0); }
 
+/* Gold “add” control — matches checklist editor + template hub */
+.btn-qc-add,
+a.btn-qc-add {
+    background: var(--gold);
+    color: var(--dark-bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0.45rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+    line-height: 1.25;
+    transition: background 0.15s;
+}
+
+.btn-qc-add:hover,
+a.btn-qc-add:hover {
+    background: var(--gold-dark);
+    color: var(--dark-bg);
+    text-decoration: none;
+}
+
+.btn-qc-add:focus-visible,
+a.btn-qc-add:focus-visible {
+    outline: 2px solid var(--gold-deeper);
+    outline-offset: 2px;
+}
+
 /* Inactive tab / secondary pill — matches card borders & gold accents */
 .btn.btn-qc-tab,
 a.btn.btn-qc-tab {

@@ -60,7 +60,7 @@
                 <i class="bi bi-list-check"></i> Submitted Checklists
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
-               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item') }}">
+               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.checklist_template_create', 'admin.checklist_template_edit', 'admin.delete_checklist_template', 'admin.toggle_checklist_template_active', 'checklist.manage_items', 'checklist.create_item', 'checklist.section_from_library') }}">
                 <i class="bi bi-journal-text"></i> Checklist Templates
             </a>
             <a href="{{ url_for('reports.inbox') }}"
@@ -105,7 +105,7 @@
                 <i class="bi bi-list-check"></i> Submitted Checklists
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
-               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.delete_checklist_template', 'checklist.manage_items', 'checklist.create_item') }}">
+               class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.checklist_template_create', 'admin.checklist_template_edit', 'admin.delete_checklist_template', 'admin.toggle_checklist_template_active', 'checklist.manage_items', 'checklist.create_item', 'checklist.section_from_library') }}">
                 <i class="bi bi-journal-text"></i> Checklist Templates
             </a>
             <a href="{{ url_for('admin.branches') }}"

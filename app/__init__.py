@@ -74,15 +74,15 @@ def create_app():
         if not current_user.is_authenticated or current_user.role != 'branch_manager':
             return flags
 
+        from app.checklist.effective import list_branch_manager_templates
         from app.db import get_db
         from app.utils import local_today
 
         db = get_db()
         today = local_today()
 
-        active_template_count = db.execute(
-            'SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1'
-        ).fetchone()[0]
+        visible_templates = list_branch_manager_templates(db, current_user.branch_id)
+        active_template_count = len(visible_templates)
         submitted_template_count = db.execute(
             '''SELECT COUNT(DISTINCT template_id)
                FROM checklist_submissions

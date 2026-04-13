@@ -1,10 +1,36 @@
-from flask import render_template, request, redirect, url_for, flash, abort
+import sqlite3
+
+from flask import render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 
 from app.admin import admin_bp
+from app.checklist.effective import (
+    clone_template_structure,
+    get_root_template,
+    list_branch_manager_templates,
+    reconcile_child_layers_after_root_scope_change,
+)
 from app.db import get_db
 from app.utils import role_required, local_today
+
+
+def _wants_modal_json():
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _checklist_template_form_prefill():
+    """Preserve form state when re-rendering after validation or DB errors."""
+    return {
+        'name': (request.form.get('name') or '').strip(),
+        'description': (request.form.get('description') or '').strip(),
+        'template_scope': (request.form.get('template_scope') or 'global').strip().lower(),
+        'brand_id': request.form.get('brand_id', type=int),
+        'template_status': (request.form.get('template_status') or 'active').strip().lower(),
+        'start_from': (request.form.get('start_from') or 'blank').strip(),
+        'copy_source_id': request.form.get('copy_source_id', type=int),
+        'copy_branch_id': request.form.get('copy_branch_id', type=int),
+    }
 
 
 @admin_bp.route('/users')
@@ -304,9 +330,7 @@ def branch_dashboard(branch_id):
         (branch_id, today)
     ).fetchone()
 
-    active_template_count = db.execute(
-        'SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1'
-    ).fetchone()[0]
+    active_template_count = len(list_branch_manager_templates(db, branch_id))
     submitted_template_count = db.execute(
         '''SELECT COUNT(DISTINCT template_id)
            FROM checklist_submissions
@@ -511,6 +535,30 @@ def create_branch():
     return redirect(url_for('admin.branches'))
 
 
+def _delete_template_layer(db, template_id):
+    """Remove sections and items for one checklist_templates row (no child rows)."""
+    sections = db.execute('SELECT id FROM checklist_sections WHERE template_id = ?', (template_id,)).fetchall()
+    for s in sections:
+        sid = s['id']
+        for it in db.execute('SELECT id FROM checklist_items WHERE section_id = ?', (sid,)):
+            iid = it['id']
+            db.execute('DELETE FROM checklist_item_branches WHERE item_id = ?', (iid,))
+            db.execute('DELETE FROM checklist_items WHERE id = ?', (iid,))
+        db.execute('DELETE FROM checklist_sections WHERE id = ?', (sid,))
+    db.execute('DELETE FROM checklist_items WHERE template_id = ? AND section_id IS NULL', (template_id,))
+
+
+def _delete_template_family(db, root_id):
+    """Delete deepest children first, then root."""
+    children = db.execute(
+        'SELECT id FROM checklist_templates WHERE parent_template_id = ?', (root_id,)
+    ).fetchall()
+    for c in children:
+        _delete_template_family(db, c['id'])
+    _delete_template_layer(db, root_id)
+    db.execute('DELETE FROM checklist_templates WHERE id = ?', (root_id,))
+
+
 @admin_bp.route('/checklist-templates')
 @login_required
 @role_required('it_admin', 'qc_admin')
@@ -518,13 +566,474 @@ def checklist_templates():
     db = get_db()
     templates = db.execute(
         '''SELECT ct.*,
-                  COUNT(DISTINCT ci.id) AS item_count
+                  (SELECT COUNT(*) FROM checklist_items ci
+                     JOIN checklist_sections cs ON cs.id = ci.section_id
+                     WHERE cs.template_id IN (
+                        SELECT id FROM checklist_templates t2
+                        WHERE t2.id = ct.id OR t2.root_template_id = ct.id
+                     )
+                  ) AS item_count,
+                  (SELECT COUNT(*) FROM checklist_templates t3
+                     WHERE t3.root_template_id = ct.id AND t3.id != ct.id
+                  ) AS tree_extra
            FROM checklist_templates ct
-           LEFT JOIN checklist_items ci ON ci.template_id = ct.id
-           GROUP BY ct.id
+           WHERE ct.parent_template_id IS NULL
            ORDER BY ct.id'''
     ).fetchall()
-    return render_template('admin/checklist_templates.html', templates=templates)
+    brand_rows = db.execute(
+        'SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name'
+    ).fetchall()
+    brands_json = [{'id': b['id'], 'name': b['name']} for b in brand_rows]
+    return render_template(
+        'admin/checklist_templates.html',
+        templates=templates,
+        brands_json=brands_json,
+    )
+
+
+@admin_bp.route('/checklist-templates/new', methods=['GET', 'POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def checklist_template_create():
+    db = get_db()
+    brands = db.execute('SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name').fetchall()
+    branches = db.execute(
+        '''SELECT b.id, b.name, br.name AS brand_name
+           FROM branches b LEFT JOIN brands br ON br.id = b.brand_id
+           ORDER BY br.name, b.name'''
+    ).fetchall()
+    dup_from = request.args.get('duplicate_from', type=int)
+    if dup_from:
+        src_root = db.execute(
+            '''SELECT id, name FROM checklist_templates
+               WHERE id = ? AND parent_template_id IS NULL''',
+            (dup_from,),
+        ).fetchone()
+        if not src_root:
+            dup_from = None
+    else:
+        src_root = None
+
+    if dup_from:
+        all_templates = db.execute(
+            '''SELECT id, name, template_scope, parent_template_id FROM checklist_templates
+               WHERE is_active = 1 OR id = ?
+               ORDER BY name''',
+            (dup_from,),
+        ).fetchall()
+    else:
+        all_templates = db.execute(
+            '''SELECT id, name, template_scope, parent_template_id FROM checklist_templates
+               WHERE is_active = 1 ORDER BY name'''
+        ).fetchall()
+
+    suggested_name = f'{src_root["name"]} (copy)' if src_root else ''
+    duplicate_source_id = dup_from if src_root else None
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        template_scope = request.form.get('template_scope', 'global').strip().lower()
+        brand_id = request.form.get('brand_id', type=int)
+        branch_id = request.form.get('branch_id', type=int)
+        parent_template_id = request.form.get('parent_template_id', type=int)
+        template_status = request.form.get('template_status', 'active').strip().lower() or 'active'
+        start_from = request.form.get('start_from', 'blank').strip()
+        copy_source_id = request.form.get('copy_source_id', type=int)
+        copy_branch_id = request.form.get('copy_branch_id', type=int)
+
+        errors = []
+        if not name:
+            errors.append('Template name is required.')
+        if template_scope not in ('global', 'brand'):
+            errors.append('Invalid template scope.')
+        if template_status not in ('draft', 'active'):
+            errors.append('Invalid status.')
+
+        parent_template_id = None
+        if template_scope == 'global':
+            brand_id = None
+            branch_id = None
+        elif template_scope == 'brand':
+            branch_id = None
+            if not brand_id:
+                errors.append('Select a brand for a brand-scoped template.')
+
+        if start_from == 'copy_selected' and not copy_source_id:
+            errors.append('Select a template to copy from, or choose “Blank”.')
+        if name:
+            name_taken = db.execute(
+                'SELECT id FROM checklist_templates WHERE name = ?',
+                (name,),
+            ).fetchone()
+            if name_taken:
+                errors.append(
+                    'A template with this name already exists. Please choose a different name.'
+                )
+
+        if errors:
+            fc = request.form.get('duplicate_from_context', type=int)
+            if not fc:
+                fc = request.args.get('duplicate_from', type=int)
+            if fc:
+                src_fix = db.execute(
+                    '''SELECT id, name FROM checklist_templates
+                       WHERE id = ? AND parent_template_id IS NULL''',
+                    (fc,),
+                ).fetchone()
+                if src_fix:
+                    duplicate_source_id = fc
+                    suggested_name = f'{src_fix["name"]} (copy)'
+                    all_templates = db.execute(
+                        '''SELECT id, name, template_scope, parent_template_id
+                           FROM checklist_templates
+                           WHERE is_active = 1 OR id = ?
+                           ORDER BY name''',
+                        (fc,),
+                    ).fetchall()
+            if _wants_modal_json():
+                return jsonify(ok=False, errors=errors), 400
+            return render_template(
+                'admin/checklist_template_form.html',
+                brands=brands,
+                branches=branches,
+                all_templates=all_templates,
+                duplicate_source_id=duplicate_source_id,
+                suggested_name=suggested_name,
+                template_errors=errors,
+                form_prefill=_checklist_template_form_prefill(),
+                is_edit=False,
+                tree_extra=0,
+            )
+
+        try:
+            cur = db.execute(
+                '''INSERT INTO checklist_templates
+                   (name, description, is_active, parent_template_id, template_scope,
+                    brand_id, branch_id, template_status, version)
+                   VALUES (?, ?, 1, ?, ?, ?, ?, ?, 1)''',
+                (
+                    name,
+                    description or None,
+                    parent_template_id,
+                    template_scope,
+                    brand_id,
+                    branch_id,
+                    template_status,
+                ),
+            )
+            new_id = cur.lastrowid
+            root_row = get_root_template(db, new_id)
+            root_id = root_row['id'] if root_row else new_id
+            db.execute(
+                'UPDATE checklist_templates SET root_template_id = ? WHERE id = ?',
+                (root_id, new_id),
+            )
+
+            do_copy = start_from in ('copy_global', 'copy_brand', 'copy_branch', 'copy_selected')
+            source_tid = copy_source_id if do_copy and copy_source_id else parent_template_id
+            if do_copy and source_tid:
+                src = db.execute('SELECT * FROM checklist_templates WHERE id = ?', (source_tid,)).fetchone()
+                if src:
+                    clone_template_structure(db, source_tid, new_id, None, source_branch_id=None)
+
+            db.commit()
+        except sqlite3.IntegrityError as exc:
+            db.rollback()
+            msg = str(exc).lower()
+            if 'checklist_templates.name' in msg:
+                db_errors = [
+                    'A template with this name already exists. Please choose a different name.'
+                ]
+            else:
+                db_errors = [
+                    'This template could not be saved because it conflicts with existing data. '
+                    'Please check your choices and try again.'
+                ]
+            if _wants_modal_json():
+                return jsonify(ok=False, errors=db_errors), 400
+            return render_template(
+                'admin/checklist_template_form.html',
+                brands=brands,
+                branches=branches,
+                all_templates=all_templates,
+                duplicate_source_id=duplicate_source_id,
+                suggested_name=suggested_name,
+                template_errors=db_errors,
+                form_prefill=_checklist_template_form_prefill(),
+                is_edit=False,
+                tree_extra=0,
+            )
+
+        manage_kw = {'template_id': root_id}
+        if template_scope == 'global':
+            manage_kw['company_wide'] = 1
+            manage_kw['layer_id'] = root_id
+            if branches:
+                manage_kw['branch_id'] = branches[0]['id']
+        elif template_scope == 'brand' and brand_id:
+            br_first = db.execute(
+                'SELECT id FROM branches WHERE brand_id = ? ORDER BY name LIMIT 1',
+                (brand_id,),
+            ).fetchone()
+            manage_kw['all_brand'] = 1
+            manage_kw['layer_id'] = root_id
+            if br_first:
+                manage_kw['branch_id'] = br_first['id']
+
+        if _wants_modal_json():
+            return jsonify(
+                ok=True,
+                redirect_url=url_for('checklist.manage_items', **manage_kw),
+            )
+        flash(
+            f'Template "{name}" created. Use the checklist editor to add sections, or switch layers when this template inherits from another.',
+            'success',
+        )
+        return redirect(url_for('checklist.manage_items', **manage_kw))
+
+    return render_template(
+        'admin/checklist_template_form.html',
+        brands=brands,
+        branches=branches,
+        all_templates=all_templates,
+        duplicate_source_id=duplicate_source_id,
+        suggested_name=suggested_name,
+        template_errors=[],
+        form_prefill={},
+        is_edit=False,
+        tree_extra=0,
+    )
+
+
+@admin_bp.route('/checklist-templates/<int:template_id>/edit', methods=['GET', 'POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def checklist_template_edit(template_id):
+    """Edit root template metadata (scope, brand, name, status)."""
+    db = get_db()
+    row = db.execute(
+        '''SELECT * FROM checklist_templates
+           WHERE id = ? AND parent_template_id IS NULL''',
+        (template_id,),
+    ).fetchone()
+    if not row:
+        abort(404)
+
+    brands = db.execute('SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name').fetchall()
+    branches = db.execute(
+        '''SELECT b.id, b.name, br.name AS brand_name
+           FROM branches b LEFT JOIN brands br ON br.id = b.brand_id
+           ORDER BY br.name, b.name'''
+    ).fetchall()
+    all_templates = db.execute(
+        '''SELECT id, name, template_scope, parent_template_id FROM checklist_templates
+           WHERE is_active = 1 ORDER BY name'''
+    ).fetchall()
+
+    root_id = row['id']
+    tree_extra = db.execute(
+        '''SELECT COUNT(*) AS c FROM checklist_templates
+           WHERE root_template_id = ? AND id != ?''',
+        (root_id, root_id),
+    ).fetchone()['c']
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        template_scope = request.form.get('template_scope', 'global').strip().lower()
+        brand_id = request.form.get('brand_id', type=int)
+        branch_id = request.form.get('branch_id', type=int)
+        parent_template_id = request.form.get('parent_template_id', type=int)
+        template_status = request.form.get('template_status', 'active').strip().lower() or 'active'
+
+        errors = []
+        if not name:
+            errors.append('Template name is required.')
+        if template_scope not in ('global', 'brand'):
+            errors.append('Invalid template scope.')
+        if template_status not in ('draft', 'active'):
+            errors.append('Invalid status.')
+
+        parent_template_id = None
+        if template_scope == 'global':
+            brand_id = None
+            branch_id = None
+        elif template_scope == 'brand':
+            branch_id = None
+            if not brand_id:
+                errors.append('Select a brand for a brand-scoped template.')
+
+        if name and name != row['name']:
+            name_taken = db.execute(
+                'SELECT id FROM checklist_templates WHERE name = ? AND id != ?',
+                (name, root_id),
+            ).fetchone()
+            if name_taken:
+                errors.append(
+                    'A template with this name already exists. Please choose a different name.'
+                )
+
+        if errors:
+            if _wants_modal_json():
+                return jsonify(ok=False, errors=errors), 400
+            return render_template(
+                'admin/checklist_template_form.html',
+                brands=brands,
+                branches=branches,
+                all_templates=all_templates,
+                duplicate_source_id=None,
+                suggested_name='',
+                template_errors=errors,
+                form_prefill=_checklist_template_form_prefill(),
+                is_edit=True,
+                edit_template_id=root_id,
+                tree_extra=tree_extra,
+            )
+
+        db.execute(
+            '''UPDATE checklist_templates SET name = ?, description = ?, template_scope = ?,
+                   brand_id = ?, branch_id = ?, parent_template_id = ?, template_status = ?
+               WHERE id = ?''',
+            (
+                name,
+                description or None,
+                template_scope,
+                brand_id,
+                branch_id,
+                parent_template_id,
+                template_status,
+                root_id,
+            ),
+        )
+        n_reconciled = reconcile_child_layers_after_root_scope_change(db, root_id)
+        db.commit()
+        msg = f'Template "{name}" was updated.'
+        if n_reconciled:
+            msg += (
+                f' {n_reconciled} linked layer(s) that no longer match this scope were hidden from '
+                'new checklists. Past submissions are unchanged.'
+            )
+        flash(msg, 'success')
+        return redirect(url_for('admin.checklist_templates'))
+
+    raw_scope = (row['template_scope'] or 'global').lower()
+    pref_scope = raw_scope
+    pref_brand = row['brand_id']
+    if raw_scope not in ('global', 'brand'):
+        if raw_scope == 'branch' and row['branch_id']:
+            br = db.execute(
+                'SELECT brand_id FROM branches WHERE id = ?', (row['branch_id'],)
+            ).fetchone()
+            pref_scope = 'brand'
+            pref_brand = br['brand_id'] if br and br['brand_id'] is not None else None
+        else:
+            pref_scope = 'global'
+            pref_brand = None
+
+    form_prefill = {
+        'name': row['name'] or '',
+        'description': (row['description'] or '').strip(),
+        'template_scope': pref_scope,
+        'brand_id': pref_brand,
+        'template_status': (row['template_status'] or 'active').lower(),
+        'start_from': 'blank',
+    }
+    return render_template(
+        'admin/checklist_template_form.html',
+        brands=brands,
+        branches=branches,
+        all_templates=all_templates,
+        duplicate_source_id=None,
+        suggested_name='',
+        template_errors=[],
+        form_prefill=form_prefill,
+        is_edit=True,
+        edit_template_id=root_id,
+        tree_extra=tree_extra,
+    )
+
+
+@admin_bp.route('/checklist-templates/<int:template_id>/scope', methods=['POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def checklist_template_quick_scope(template_id):
+    """Update root template scope from the templates list (JSON + CSRF header)."""
+    data = request.get_json(silent=True) or {}
+    template_scope = (data.get('template_scope') or '').strip().lower()
+    if template_scope not in ('global', 'brand'):
+        return jsonify(ok=False, errors=['Invalid template scope.']), 400
+
+    def _int_or_none(key):
+        v = data.get(key)
+        if v is None or v == '':
+            return None
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    brand_id_in = _int_or_none('brand_id')
+
+    db = get_db()
+    row = db.execute(
+        '''SELECT * FROM checklist_templates
+           WHERE id = ? AND parent_template_id IS NULL''',
+        (template_id,),
+    ).fetchone()
+    if not row:
+        return jsonify(ok=False, errors=['Template not found.']), 404
+
+    root_id = row['id']
+
+    parent_template_id = None
+    if template_scope == 'global':
+        brand_id = None
+        branch_id = None
+    else:  # brand
+        branch_id = None
+        brand_id = brand_id_in or row['brand_id']
+        if not brand_id:
+            return jsonify(ok=False, errors=['Select a brand for a brand-scoped template.']), 400
+
+    db.execute(
+        '''UPDATE checklist_templates SET template_scope = ?,
+               brand_id = ?, branch_id = ?, parent_template_id = ?
+           WHERE id = ?''',
+        (template_scope, brand_id, branch_id, parent_template_id, root_id),
+    )
+    reconcile_child_layers_after_root_scope_change(db, root_id)
+    db.commit()
+    return jsonify(ok=True, template_scope=template_scope)
+
+
+@admin_bp.route('/checklist-templates/<int:template_id>/toggle-active', methods=['POST'])
+@login_required
+@role_required('it_admin', 'qc_admin')
+def toggle_checklist_template_active(template_id):
+    db = get_db()
+    row = db.execute(
+        '''SELECT * FROM checklist_templates
+           WHERE id = ? AND parent_template_id IS NULL''',
+        (template_id,),
+    ).fetchone()
+    if not row:
+        flash('Only root checklist templates can be activated or deactivated from this page.', 'danger')
+        return redirect(url_for('admin.checklist_templates'))
+
+    root_id = row['id']
+    new_active = 0 if row['is_active'] else 1
+    db.execute(
+        '''UPDATE checklist_templates SET is_active = ?
+           WHERE id = ? OR root_template_id = ?''',
+        (new_active, root_id, root_id),
+    )
+    db.commit()
+    if new_active:
+        flash(f'"{row["name"]}" and its layers are now active.', 'success')
+    else:
+        flash(f'"{row["name"]}" and its layers are now inactive (hidden from branch managers).', 'success')
+    return redirect(url_for('admin.checklist_templates'))
 
 
 @admin_bp.route('/checklist-templates/<int:template_id>/delete', methods=['POST'])
@@ -540,22 +1049,26 @@ def delete_checklist_template(template_id):
         flash('Template not found.', 'danger')
         return redirect(url_for('admin.checklist_templates'))
 
+    root = get_root_template(db, template_id)
+    if root['id'] != template_id:
+        flash('Open the parent checklist card to delete an entire template family.', 'warning')
+        return redirect(url_for('admin.checklist_templates'))
+
     in_use = db.execute(
-        'SELECT COUNT(*) FROM checklist_submissions WHERE template_id = ?', (template_id,)
+        'SELECT COUNT(*) FROM checklist_submissions WHERE template_id = ?', (root['id'],)
     ).fetchone()[0]
 
     if in_use > 0:
         flash(
             f'Cannot delete "{template["name"]}" — it has {in_use} submission(s) on record. '
             'Deactivate it instead.',
-            'danger'
+            'danger',
         )
         return redirect(url_for('admin.checklist_templates'))
 
-    db.execute('DELETE FROM checklist_items WHERE template_id = ?', (template_id,))
-    db.execute('DELETE FROM checklist_templates WHERE id = ?', (template_id,))
+    _delete_template_family(db, root['id'])
     db.commit()
-    flash(f'Template "{template["name"]}" deleted.', 'success')
+    flash(f'Template "{template["name"]}" and its layers were deleted.', 'success')
     return redirect(url_for('admin.checklist_templates'))
 
 

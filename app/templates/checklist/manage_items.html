@@ -26,19 +26,30 @@
 .branch-item:hover{background:var(--gold-pale);color:var(--gold-deeper)}
 .branch-item.active{background:var(--gold);color:var(--dark-bg);font-weight:700}
 .branch-item:last-child{border-bottom:none}
+.branch-item--company{display:flex;align-items:center;border-left:3px solid var(--gold)}
+.branch-item--company:not(.active){background:linear-gradient(90deg, rgba(212,175,55,.12), transparent)}
+.branch-item--company.active{background:var(--gold);color:var(--dark-bg);font-weight:700;border-left-color:var(--dark-bg)}
 
+/* ── sticky editor head (tab title + add section + panel) ── */
+.cl-editor-sticky{
+  position:sticky;
+  top:calc(var(--navbar-height) + .35rem);
+  z-index:840;
+  background:var(--body-bg);
+  padding:.55rem .9rem 1rem;
+  margin:0 0 1rem;
+  border-radius:10px;
+  border-bottom:1px solid #e6ddc8;
+  box-shadow:0 8px 20px -12px rgba(0,0,0,.15);
+}
 /* ── top bar ── */
 .cl-topbar{display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:1.2rem;gap:1rem;flex-wrap:wrap}
+  margin-bottom:.85rem;gap:1rem;flex-wrap:wrap}
 .cl-topbar h2{font-size:1.2rem;font-weight:800;color:var(--gold-deeper);margin:0}
-.cl-add-sec-btn{background:var(--gold);color:var(--dark-bg);border:none;border-radius:8px;
-  padding:.45rem 1rem;font-size:.85rem;font-weight:700;cursor:pointer;
-  display:inline-flex;align-items:center;gap:.4rem}
-.cl-add-sec-btn:hover{background:var(--gold-dark)}
 
 /* ── add-section panel ── */
 .add-sec-panel{display:none;background:var(--gold-pale);border:1px solid var(--gold);
-  border-radius:10px;padding:.9rem 1.1rem;margin-bottom:1.1rem}
+  border-radius:10px;padding:.9rem 1.1rem;margin-bottom:0}
 .add-sec-panel.open{display:block}
 .add-sec-panel label{font-size:.8rem;font-weight:600;color:var(--gold-deeper);display:block;margin-bottom:.2rem}
 .add-sec-panel input{width:100%;border:1px solid #c9b98a;border-radius:6px;
@@ -117,12 +128,62 @@
 .cl-empty{text-align:center;padding:3rem 1rem;color:#bbb}
 .cl-empty i{font-size:2.2rem;display:block;margin-bottom:.6rem}
 
+/* side toast (AJAX success / errors) */
+#qc-toast-host{position:fixed;right:1rem;top:calc(var(--navbar-height, 56px) + .75rem);z-index:9500;
+  display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;pointer-events:none;max-width:min(380px,calc(100vw - 2rem))}
+.qc-toast{pointer-events:auto;background:var(--dark-bg);color:var(--gold);border:1px solid var(--gold);
+  border-radius:10px;padding:.72rem 1rem .72rem 1.1rem;font-size:.86rem;font-weight:600;line-height:1.35;
+  box-shadow:0 10px 36px rgba(0,0,0,.28);transform:translateX(115%);opacity:0;
+  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .32s ease}
+.qc-toast.show{transform:translateX(0);opacity:1}
+.qc-toast.qc-toast--danger{border-color:#f87171;color:#fecaca}
+.qc-toast .qc-toast-msg{max-height:4.5rem;overflow:auto}
+
 /* no-branch selected */
 .no-branch{text-align:center;padding:4rem 1rem;color:#bbb}
 .no-branch i{font-size:2.5rem;display:block;margin-bottom:.7rem}
+
+/* template summary (simple) */
+.cl-meta{background:#faf8f3;border:1px solid #e6ddc8;border-radius:10px;padding:.75rem 1rem 1rem;margin-bottom:1rem}
+.cl-meta-head{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.35rem}
+.cl-meta-title{font-size:1.05rem;font-weight:800;color:var(--gold-deeper);margin:0;line-height:1.25}
+.cl-pill-draft{font-size:.68rem;font-weight:700;padding:.12rem .45rem;border-radius:999px;background:#fff3cd;color:#92400e;border:1px solid #fcd34d}
+.cl-meta-hint{margin:0 0 .6rem;font-size:.84rem;color:#64748b;line-height:1.45;max-width:52rem}
+.cl-meta-sublabel{margin:0 0 .35rem;font-size:.72rem;font-weight:700;color:var(--gold-deeper);text-transform:uppercase;letter-spacing:.04em}
+.cl-badge-inherit{font-size:.62rem;font-weight:700;padding:.12rem .4rem;border-radius:4px;background:#f3e8ff;color:#5b21b6}
+.cl-layer-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 .25rem}
+.cl-layer-tab{font-size:.82rem;padding:.4rem .85rem;border-radius:8px;border:1px solid #d4c99a;text-decoration:none;color:#334155;background:#fff}
+.cl-layer-tab:hover{background:var(--gold-pale);color:var(--gold-deeper);border-color:var(--gold)}
+.cl-layer-tab.active{background:var(--gold);color:var(--dark-bg);font-weight:700;border-color:var(--gold-dark)}
+.cl-actions{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 .65rem}
+.cl-actions a{font-size:.8rem;padding:.35rem .65rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#475569;text-decoration:none}
+.cl-actions a:hover{background:#f1f5f9;border-color:#94a3b8;color:#1e293b}
+.cl-library-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.5rem;margin-top:.65rem;padding-top:.65rem;border-top:1px solid #e6ddc8}
+.cl-library-row label{font-size:.72rem;font-weight:600;color:#64748b;margin-bottom:.15rem;display:block}
+.cl-library-hint{font-size:.72rem;color:#94a3b8;margin:-.05rem 0 .35rem;line-height:1.35;max-width:36rem}
+/* duplicate slide-over */
+.cl-actions button.cl-btn-dup{display:inline-flex;align-items:center;font:inherit;font-size:.8rem;padding:.35rem .65rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#475569;cursor:pointer}
+.cl-actions button.cl-btn-dup:hover{background:#f1f5f9;border-color:#94a3b8;color:#1e293b}
+.dup-backdrop{display:none;position:fixed;inset:0;background:rgba(28,26,20,.45);z-index:1040}
+.dup-backdrop.open{display:block}
+.dup-panel{position:fixed;top:0;right:0;width:min(420px,100%);max-width:100%;height:100%;background:#fff;z-index:1050;box-shadow:-8px 0 32px rgba(0,0,0,.12);transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;border-left:1px solid #e6ddc8}
+.dup-panel.open{transform:translateX(0)}
+.dup-panel-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.1rem;border-bottom:1px solid #e6ddc8;background:var(--dark-bg);flex-shrink:0}
+.dup-panel-title{font-size:1rem;font-weight:800;color:var(--gold);margin:0}
+.dup-close{background:none;border:none;color:rgba(255,255,255,.75);font-size:1.5rem;line-height:1;cursor:pointer;padding:.15rem .4rem;border-radius:4px}
+.dup-close:hover{color:#fff;background:rgba(255,255,255,.1)}
+.dup-panel-intro{margin:0;padding:.85rem 1.1rem;font-size:.84rem;color:#64748b;line-height:1.45;border-bottom:1px solid #f0ebe0}
+.dup-errors{margin:.75rem 1.1rem 0;padding:.55rem .75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:.82rem}
+#dup-template-form{flex:1;overflow-y:auto;padding:1rem 1.1rem 1.25rem}
+.dup-field{margin-bottom:1rem}
+.dup-field label{display:block;font-size:.72rem;font-weight:700;color:var(--gold-deeper);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem}
+.dup-optional{font-weight:500;color:#94a3b8;text-transform:none}
+.dup-hint{font-size:.72rem;color:#94a3b8;margin:.2rem 0 .35rem;line-height:1.35}
+.dup-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid #f0ebe0}
 </style>
 
 <div class="cl-layout">
+  <div id="qc-toast-host" aria-live="polite" aria-atomic="true"></div>
 
   {# ── Branch sidebar ── #}
   <div class="cl-sidebar">
@@ -130,6 +191,20 @@
       <div class="branch-list-head">
         {% if selected_template %}{{ selected_template.name }}{% else %}Branches{% endif %}
       </div>
+      {% if selected_template and (selected_template.template_scope or 'legacy')|lower == 'global' and branches and selected_branch_id %}
+      <a href="{{ url_for('checklist.manage_items', branch_id=selected_branch_id, template_id=template_id, company_wide=1, layer_id=template_id) }}"
+         class="branch-item branch-item--company {{ 'active' if company_wide else '' }}"
+         title="Edit the checklist that applies to every brand and branch">
+        <i class="bi bi-globe2 me-1"></i>All brands &amp; branches
+      </a>
+      {% endif %}
+      {% if selected_template and (selected_template.template_scope or 'legacy')|lower == 'brand' and branches and selected_branch_id and brand_all_branches_name %}
+      <a href="{{ url_for('checklist.manage_items', branch_id=selected_branch_id, template_id=template_id, all_brand=1, layer_id=template_id) }}"
+         class="branch-item branch-item--company {{ 'active' if all_brand else '' }}"
+         title="Edit the checklist shared by every branch under this brand">
+        <i class="bi bi-buildings me-1"></i>All {{ brand_all_branches_name }} Branches
+      </a>
+      {% endif %}
       {% if branches %}
         {# Group by brand #}
         {% set seen_brands = [] %}
@@ -144,7 +219,7 @@
             </div>
           {% endif %}
           <a href="{{ url_for('checklist.manage_items', branch_id=b.id, template_id=template_id) }}"
-             class="branch-item {{ 'active' if b.id == selected_branch_id }}"
+             class="branch-item {{ 'active' if b.id == selected_branch_id and not company_wide and not all_brand else '' }}"
              style="padding-left:1.4rem">
             <i class="bi bi-building me-1"></i>{{ b.name }}
           </a>
@@ -158,26 +233,153 @@
   {# ── Main area ── #}
   <div class="cl-main">
 
-    {% if selected_branch %}
-    <div class="cl-topbar">
-      <div>
-        <h2><i class="bi bi-building me-1" style="color:var(--gold)"></i>{{ selected_branch.name }}</h2>
-        {% if selected_template %}
-        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">
-          <i class="bi bi-journal-text me-1" style="color:var(--gold);"></i>
-          {{ selected_template.name }} checklist
-        </div>
+    {% if selected_template %}
+    {% set root_scope = (selected_template.template_scope or 'legacy')|lower %}
+    {% if layer_tabs|length > 1 %}
+      {% set how_it_works = '' %}
+    {% elif root_scope == 'global' %}
+      {% set how_it_works = 'Pick a branch in the sidebar to see the combined checklist managers get. Use tabs to add sections on the All brands & branches layer, brand add-ons, or this branch only.' %}
+    {% elif root_scope == 'brand' %}
+      {% set how_it_works = 'One list of questions is shared by every branch under this brand—edit it once and it applies everywhere for this brand.' %}
+    {% else %}
+      {% set how_it_works = 'Each branch has its own list of sections and questions. Use the sidebar to switch branches.' %}
+    {% endif %}
+    <div class="cl-meta">
+      <div class="cl-meta-head">
+        <h3 class="cl-meta-title">{{ selected_template.name }}</h3>
+        {% if (selected_template.template_status or 'active') == 'draft' %}
+        <span class="cl-pill-draft">Draft — not shown to managers yet</span>
         {% endif %}
       </div>
-      <button class="cl-add-sec-btn" onclick="togglePanel()">+ Add Section</button>
+      {% if how_it_works %}
+      <p class="cl-meta-hint">{{ how_it_works }}</p>
+      {% endif %}
+
+      <div class="cl-actions">
+        <button type="button" class="cl-btn-dup" id="dup-open-btn"
+                title="Create a new template from this checklist">
+          <i class="bi bi-copy me-1"></i>Duplicate
+        </button>
+      </div>
+
+      {% if selected_branch_id and layer_tabs|length > 1 %}
+      <p class="cl-meta-sublabel">What to edit</p>
+      <div class="cl-layer-tabs">
+        {% for layer in layer_tabs %}
+        {% set ls = (layer.template_scope or '')|lower %}
+        {% set st = (selected_template.template_scope or '')|lower %}
+        <a class="cl-layer-tab {{ 'active' if layer.id == editing_layer_id }}"
+           title="{{ layer.name }}"
+           href="{% if company_wide and ls == 'global' and layer.id == template_id %}{{ url_for('checklist.manage_items', branch_id=selected_branch_id, template_id=template_id, layer_id=layer.id, company_wide=1) }}{% elif all_brand and ls == 'brand' and layer.id == template_id and st == 'brand' %}{{ url_for('checklist.manage_items', branch_id=selected_branch_id, template_id=template_id, layer_id=layer.id, all_brand=1) }}{% else %}{{ url_for('checklist.manage_items', branch_id=selected_branch_id, template_id=template_id, layer_id=layer.id) }}{% endif %}">
+          {%- if ls == 'global' and layer.id == template_id -%}All brands &amp; branches
+          {%- elif ls == 'global' -%}Shared base
+          {%- elif ls == 'brand' and layer.id == template_id and st == 'brand' -%}Brand-wide checklist
+          {%- elif ls == 'brand' -%}Brand add-ons
+          {%- elif ls == 'branch' -%}This branch only
+          {%- else -%}{{ layer.name }}{%- endif -%}
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if peer_reuse_visible %}
+      <form method="POST" action="{{ url_for('checklist.section_from_peer') }}" class="cl-library-row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="template_id" value="{{ editing_layer_id }}">
+        <input type="hidden" name="root_template_id" value="{{ root_template_id }}">
+        <input type="hidden" name="context_branch_id" value="{{ selected_branch_id or '' }}">
+        {% if company_wide %}<input type="hidden" name="company_wide" value="1">{% endif %}
+        {% if all_brand %}<input type="hidden" name="all_brand" value="1">{% endif %}
+        <div>
+          <label for="peer-sec-{{ editing_layer_id }}">Copy section from other branches</label>
+          <div class="cl-library-hint">
+            {% if editing_layer and (editing_layer.template_scope or '')|lower == 'branch' %}
+            Choose a section from another branch’s <strong>This branch only</strong> list. The copy is added only for <strong>{{ selected_branch.name if selected_branch else 'this branch' }}</strong>.
+            {% else %}
+            From another branch’s combined checklist — only section names you do not already have on this layer yet.
+            {% endif %}
+          </div>
+          <select id="peer-sec-{{ editing_layer_id }}" name="peer_section_id" class="form-select form-select-sm" style="min-width:200px"
+                  {% if peer_reuse_options %}required{% else %}disabled{% endif %}>
+            {% if peer_reuse_options %}
+            <option value="" disabled selected>— Pick a section —</option>
+            {% for opt in peer_reuse_options %}
+            <option value="{{ opt.section_id }}">{{ opt.label }}</option>
+            {% endfor %}
+            {% else %}
+            <option value="" selected>No sections available from other branches</option>
+            {% endif %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-secondary" {% if not peer_reuse_options %}disabled{% endif %}>Add to checklist</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if selected_branch %}
+    <div class="cl-editor-sticky">
+    <div class="cl-topbar">
+      <div>
+        {% if company_wide %}
+        <h2><i class="bi bi-globe2 me-1" style="color:var(--gold)"></i>All brands &amp; branches</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Every brand and branch</div>
+        {% endif %}
+        {% elif all_brand %}
+        <h2><i class="bi bi-buildings me-1" style="color:var(--gold)"></i>All {{ brand_all_branches_name }} Branches</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Brand-wide checklist — every branch under this brand</div>
+        {% endif %}
+        {% elif layer_tabs|length > 1 and editing_layer %}
+        {% set el_scope = (editing_layer.template_scope or '')|lower %}
+        {% if el_scope == 'branch' %}
+        <h2><i class="bi bi-building me-1" style="color:var(--gold)"></i>{{ selected_branch.name }}</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">This branch only — other branches are unchanged</div>
+        {% endif %}
+        {% elif el_scope == 'brand' %}
+        {% if (selected_template.template_scope or '')|lower == 'brand' %}
+        <h2><i class="bi bi-buildings me-1" style="color:var(--gold)"></i>Brand-wide checklist</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Every branch under this brand</div>
+        {% endif %}
+        {% else %}
+        <h2><i class="bi bi-tag me-1" style="color:var(--gold)"></i>Brand add-ons</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Every branch under this brand (not other brands)</div>
+        {% endif %}
+        {% endif %}
+        {% elif el_scope == 'global' %}
+        <h2><i class="bi bi-globe2 me-1" style="color:var(--gold)"></i>All brands &amp; branches</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Every brand and branch</div>
+        {% endif %}
+        {% else %}
+        <h2><i class="bi bi-building me-1" style="color:var(--gold)"></i>{{ selected_branch.name }}</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Branch you’re editing</div>
+        {% endif %}
+        {% endif %}
+        {% else %}
+        <h2><i class="bi bi-building me-1" style="color:var(--gold)"></i>{{ selected_branch.name }}</h2>
+        {% if selected_template %}
+        <div style="font-size:.78rem;color:#7a869a;margin-top:.1rem;">Branch you’re editing</div>
+        {% endif %}
+        {% endif %}
+      </div>
+      <button type="button" class="btn-qc-add" onclick="togglePanel()">+ Add Section</button>
     </div>
 
-    {# ── Add-section panel ── #}
+    {# ── Add-section panel (inside sticky head so it stays visible when open) ── #}
     <div class="add-sec-panel" id="add-panel">
-      <form method="POST" action="{{ url_for('checklist.create_section') }}">
+      <form method="POST" action="{{ url_for('checklist.create_section') }}" class="js-ajax-create-section" id="add-section-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="template_id" value="{{ template_id }}">
-        <input type="hidden" name="branch_id" value="{{ selected_branch_id }}">
+        <input type="hidden" name="template_id" value="{{ editing_layer_id }}">
+        <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+        <input type="hidden" name="context_branch_id" value="{{ selected_branch_id or '' }}">
+        {% if company_wide %}<input type="hidden" name="company_wide" value="1">{% endif %}
+        {% if all_brand %}<input type="hidden" name="all_brand" value="1">{% endif %}
         <label>Section Name</label>
         <input type="text" name="name" placeholder="e.g. Dining Area / Guest Seating" required autofocus>
         <div class="pa">
@@ -186,120 +388,30 @@
         </div>
       </form>
     </div>
+    </div>{# /.cl-editor-sticky #}
 
     {# ── Sections ── #}
+    <div id="cl-sections-root">
     {% if sections_data %}
       {% for sec_entry in sections_data %}
-      {% set sec = sec_entry['section'] %}
-      <div class="cl-section-card" id="sec-{{ sec.id }}">
-
-        <div class="cl-sec-head">
-          <span class="cl-sec-head-name" id="sname-{{ sec.id }}">{{ sec.name }}</span>
-          <input type="text" class="cl-sec-input" id="sinp-{{ sec.id }}" value="{{ sec.name }}">
-
-          <button class="sa" id="sedit-{{ sec.id }}" onclick="startRen({{ sec.id }})"><i class="bi bi-pencil"></i> Rename</button>
-          <button class="sa green" id="ssave-{{ sec.id }}" onclick="saveRen({{ sec.id }})">✔ Save</button>
-          <button class="sa grey" id="scancel-{{ sec.id }}" onclick="cancelRen({{ sec.id }})">✖</button>
-
-          <form method="POST" action="{{ url_for('checklist.delete_section', section_id=sec.id) }}"
-                style="margin:0" onsubmit="return confirmDelSec('{{ sec.name }}', {{ sec_entry['items']|length }})">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="sa red">🗑 Delete</button>
-          </form>
-
-          <form method="POST" action="{{ url_for('checklist.edit_section', section_id=sec.id) }}"
-                id="sform-{{ sec.id }}" style="display:none">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="name" id="sformname-{{ sec.id }}">
-          </form>
-        </div>
-
-        <table class="cl-tbl">
-          <thead>
-            <tr>
-              <th style="width:28px;"></th>
-              <th>#</th>
-              <th>Description</th>
-              <th style="width:65px;text-align:center">Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if sec_entry['items'] %}
-              {% for item in sec_entry['items'] %}
-              <tr {% if not item.is_active %}class="row-off"{% endif %} data-id="{{ item.id }}">
-                <td class="drag-handle" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></td>
-                <td>{{ loop.index }}</td>
-                <td>
-                  <span class="idsp" id="itxt-{{ item.id }}"
-                        {% if item.is_active %}onclick="startEdit({{ item.id }})"{% endif %}>
-                    {{ item.item_text }}
-                  </span>
-                  {% if not item.is_active %}<span class="inactive-pip">Off</span>{% endif %}
-                  {% if item.is_active %}
-                  <input type="text" class="iinp" id="iinp-{{ item.id }}" value="{{ item.item_text }}">
-                  {% endif %}
-                </td>
-                <td style="text-align:center">
-                  <form method="POST" action="{{ url_for('checklist.toggle_item', item_id=item.id) }}" style="margin:0">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="bi-btn" title="{{ 'Deactivate' if item.is_active else 'Activate' }}"
-                            style="font-size:.88rem">{{ '🟢' if item.is_active else '🔴' }}</button>
-                  </form>
-                </td>
-                <td>
-                  {% if item.is_active %}
-                  <button class="bi-btn bi-edit" id="iedit-{{ item.id }}" onclick="startEdit({{ item.id }})" title="Edit"><i class="bi bi-pencil"></i></button>
-                  <button class="bi-btn bi-save" id="isave-{{ item.id }}" onclick="saveEdit({{ item.id }})" title="Save"><i class="bi bi-check-lg"></i></button>
-                  <button class="bi-btn bi-cancel" id="icancel-{{ item.id }}" onclick="cancelEdit({{ item.id }})" title="Cancel"><i class="bi bi-x-lg"></i></button>
-                  <form method="POST" action="{{ url_for('checklist.update_item_text', item_id=item.id) }}"
-                        id="iform-{{ item.id }}" style="display:none">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="item_text" id="iformtxt-{{ item.id }}">
-                  </form>
-                  {% else %}
-                  <span style="font-size:.72rem;color:#ccc;font-style:italic">activate to edit</span>
-                  {% endif %}
-                  <form method="POST" action="{{ url_for('checklist.delete_item', item_id=item.id) }}"
-                        style="display:inline" onsubmit="return confirm('Delete this item?')">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="bi-btn bi-delete" title="Delete"><i class="bi bi-trash"></i></button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr><td colspan="5" style="text-align:center;color:#ccc;font-style:italic;padding:.7rem">
-                No items — add one below.
-              </td></tr>
-            {% endif %}
-          </tbody>
-          <tfoot>
-            <tr class="add-row">
-              <td colspan="5">
-                <form method="POST" action="{{ url_for('checklist.create_item') }}" class="add-form">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="template_id" value="{{ template_id }}">
-                  <input type="hidden" name="section_id" value="{{ sec.id }}">
-                  <input type="hidden" name="branch_scope" value="all">
-                  <input type="hidden" name="branch_id_redirect" value="{{ selected_branch_id }}">
-                  <input type="text" name="item_text" class="add-inp"
-                         placeholder="Add checklist item…" required>
-                  <button type="submit" class="add-btn">+ Add</button>
-                </form>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+        {% include 'checklist/_manage_section_card.html' %}
       {% endfor %}
     {% else %}
       <div class="cl-empty">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
-        No sections yet for <strong>{{ selected_branch.name }}</strong>.<br>
+        {% if layer_tabs|length > 1 %}
+        No checklist content yet for <strong>{{ selected_branch.name }}</strong> (nothing for managers to see).<br>
+        {% elif company_wide %}
+        No sections yet on the <strong>All brands &amp; branches</strong> layer (applies everywhere).<br>
+        {% elif all_brand %}
+        No sections yet on this <strong>brand-wide</strong> checklist (applies to every branch under {{ brand_all_branches_name }}).<br>
+        {% else %}
+        No sections yet for <strong>{{ selected_branch.name }}</strong> on this layer.<br>
+        {% endif %}
         Click <strong style="color:var(--gold-deeper)">+ Add Section</strong> to create the first one.
       </div>
     {% endif %}
+    </div>{# /#cl-sections-root #}
 
     {% else %}
     <div class="no-branch">
@@ -311,11 +423,35 @@
   </div>
 </div>
 
+{% if selected_template %}
+{% include 'checklist/_duplicate_template_modal.html' %}
+<div class="modal fade" id="dupSubmitErrorModal" tabindex="-1" aria-labelledby="dupSubmitErrorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:1px solid #e6ddc8;border-radius:12px;overflow:hidden">
+      <div class="modal-header border-0 py-3" style="background:var(--dark-bg);">
+        <h5 class="modal-title fw-bold mb-0" id="dupSubmitErrorModalLabel" style="color:var(--gold);">
+          <i class="bi bi-exclamation-octagon me-2"></i>Could not create template
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3" id="dupSubmitErrorModalBody"></div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn fw-bold" data-bs-dismiss="modal" style="background:var(--gold);border:none;color:var(--dark-bg);padding:.4rem 1.25rem">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <script>
 function togglePanel() {
   const p = document.getElementById('add-panel');
+  if (!p) return;
   p.classList.toggle('open');
-  if (p.classList.contains('open')) p.querySelector('input[name="name"]').focus();
+  if (p.classList.contains('open')) {
+    const n = p.querySelector('input[name="name"]');
+    if (n) n.focus();
+  }
 }
 
 /* Section rename */
@@ -369,28 +505,441 @@ function confirmDelSec(name, count) {
     return confirm('Delete section "' + name + '"?\nIt has ' + count + ' item(s) — deactivate them first.');
   return confirm('Delete section "' + name + '"?');
 }
+
+function qcHideToast(el) {
+  if (!el || !el.parentNode) return;
+  el.classList.remove('show');
+  setTimeout(function() {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  }, 400);
+}
+function qcShowToast(message, variant) {
+  var host = document.getElementById('qc-toast-host');
+  if (!host) return;
+  var el = document.createElement('div');
+  el.className = 'qc-toast' + (variant === 'danger' ? ' qc-toast--danger' : '');
+  el.setAttribute('role', 'status');
+  var inner = document.createElement('div');
+  inner.className = 'qc-toast-msg';
+  inner.textContent = message;
+  el.appendChild(inner);
+  host.appendChild(el);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() { el.classList.add('show'); });
+  });
+  setTimeout(function() { qcHideToast(el); }, 4200);
+}
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
-document.querySelectorAll('.cl-tbl tbody').forEach(function(tbody) {
+window.CL_ITEM_URL_TMPL = {
+  toggle: "{{ url_for('checklist.toggle_item', item_id=900000001) }}",
+  updateText: "{{ url_for('checklist.update_item_text', item_id=900000001) }}",
+  deleteItem: "{{ url_for('checklist.delete_item', item_id=900000001) }}"
+};
+function clItemUrl(kind, itemId) {
+  return window.CL_ITEM_URL_TMPL[kind].split('900000001').join(String(itemId));
+}
+function clReorderPost(tbody) {
+  var rows = tbody.querySelectorAll('tr[data-id]');
+  var itemIds = Array.from(rows).map(function(r) { return parseInt(r.dataset.id, 10); });
+  fetch('{{ url_for("checklist.reorder_items") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    },
+    body: JSON.stringify({ item_ids: itemIds })
+  });
+}
+function clRenumberItemRows(tbody) {
+  if (!tbody) return;
+  tbody.querySelectorAll('tr[data-id]').forEach(function(row, idx) {
+    if (row.cells[1]) row.cells[1].textContent = String(idx + 1);
+  });
+}
+function clBindSortable(tbody) {
+  if (typeof Sortable === 'undefined' || !tbody) return;
+  var existing = Sortable.get(tbody);
+  if (existing && typeof existing.destroy === 'function') {
+    existing.destroy();
+  }
   Sortable.create(tbody, {
     handle: '.drag-handle',
     animation: 150,
     ghostClass: 'sortable-ghost',
     onEnd: function() {
-      const rows = tbody.querySelectorAll('tr[data-id]');
-      const itemIds = Array.from(rows).map(r => parseInt(r.dataset.id));
-      fetch('{{ url_for("checklist.reorder_items") }}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ item_ids: itemIds })
-      });
+      clRenumberItemRows(tbody);
+      clReorderPost(tbody);
     }
   });
+}
+document.querySelectorAll('.cl-tbl tbody').forEach(function(tbody) { clBindSortable(tbody); });
+
+document.addEventListener('submit', function(ev) {
+  var form = ev.target;
+  if (!form || form.tagName !== 'FORM' || !form.classList.contains('js-ajax-add-item')) return;
+  ev.preventDefault();
+    var inp = form.querySelector('input.add-inp[name="item_text"]');
+    var text = inp && inp.value.trim();
+    if (!text) return;
+    var fd = new FormData(form);
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+    fetch(form.action, {
+      method: 'POST',
+      body: fd,
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(function(r) {
+        return r.text().then(function(text) {
+          var data = null;
+          try {
+            data = text ? JSON.parse(text) : null;
+          } catch (e) {
+            data = null;
+          }
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function(x) {
+        if (btn) btn.disabled = false;
+        if (!x.data || !x.data.ok) {
+          var errs = (x.data && x.data.errors) ? x.data.errors : null;
+          if (!errs) {
+            errs = [!x.ok || !x.data ? 'Server error or invalid response.' : 'Could not add item.'];
+          }
+          qcShowToast(errs.join('\n'), 'danger');
+          return;
+        }
+        var item = x.data.item;
+        var table = form.closest('table');
+        var tbody = table && table.querySelector('tbody');
+        if (!tbody || !item) return;
+        var emptyRow = Array.from(tbody.querySelectorAll('tr')).find(function(tr) {
+          return tr.cells && tr.cells.length === 1 && tr.cells[0].getAttribute('colspan');
+        });
+        if (emptyRow) emptyRow.remove();
+        var csrf = form.querySelector('input[name="csrf_token"]');
+        var csrfVal = csrf ? csrf.value : '';
+
+        var tr = document.createElement('tr');
+        tr.dataset.id = String(item.id);
+
+        var tdDrag = document.createElement('td');
+        tdDrag.className = 'drag-handle';
+        tdDrag.title = 'Drag to reorder';
+        tdDrag.innerHTML = '<i class="bi bi-grip-vertical"></i>';
+
+        var tdNum = document.createElement('td');
+        tdNum.textContent = '0';
+
+        var tdDesc = document.createElement('td');
+        var span = document.createElement('span');
+        span.className = 'idsp';
+        span.id = 'itxt-' + item.id;
+        span.textContent = item.item_text;
+        span.setAttribute('onclick', 'startEdit(' + item.id + ')');
+        var iinp = document.createElement('input');
+        iinp.type = 'text';
+        iinp.className = 'iinp';
+        iinp.id = 'iinp-' + item.id;
+        iinp.value = item.item_text;
+        tdDesc.appendChild(span);
+        tdDesc.appendChild(iinp);
+
+        var tdStat = document.createElement('td');
+        tdStat.style.textAlign = 'center';
+        var fToggle = document.createElement('form');
+        fToggle.method = 'POST';
+        fToggle.action = clItemUrl('toggle', item.id);
+        fToggle.style.margin = '0';
+        var hCsrf1 = document.createElement('input');
+        hCsrf1.type = 'hidden';
+        hCsrf1.name = 'csrf_token';
+        hCsrf1.value = csrfVal;
+        var bToggle = document.createElement('button');
+        bToggle.type = 'submit';
+        bToggle.className = 'bi-btn';
+        bToggle.title = 'Deactivate';
+        bToggle.style.fontSize = '.88rem';
+        bToggle.textContent = '🟢';
+        fToggle.appendChild(hCsrf1);
+        fToggle.appendChild(bToggle);
+        tdStat.appendChild(fToggle);
+
+        var tdAct = document.createElement('td');
+        var bEdit = document.createElement('button');
+        bEdit.className = 'bi-btn bi-edit';
+        bEdit.id = 'iedit-' + item.id;
+        bEdit.title = 'Edit';
+        bEdit.setAttribute('onclick', 'startEdit(' + item.id + ')');
+        bEdit.innerHTML = '<i class="bi bi-pencil"></i>';
+        var bSave = document.createElement('button');
+        bSave.className = 'bi-btn bi-save';
+        bSave.id = 'isave-' + item.id;
+        bSave.title = 'Save';
+        bSave.setAttribute('onclick', 'saveEdit(' + item.id + ')');
+        bSave.innerHTML = '<i class="bi bi-check-lg"></i>';
+        var bCancel = document.createElement('button');
+        bCancel.className = 'bi-btn bi-cancel';
+        bCancel.id = 'icancel-' + item.id;
+        bCancel.title = 'Cancel';
+        bCancel.setAttribute('onclick', 'cancelEdit(' + item.id + ')');
+        bCancel.innerHTML = '<i class="bi bi-x-lg"></i>';
+        var fUpd = document.createElement('form');
+        fUpd.method = 'POST';
+        fUpd.action = clItemUrl('updateText', item.id);
+        fUpd.id = 'iform-' + item.id;
+        fUpd.style.display = 'none';
+        var hCsrf2 = document.createElement('input');
+        hCsrf2.type = 'hidden';
+        hCsrf2.name = 'csrf_token';
+        hCsrf2.value = csrfVal;
+        var hTxt = document.createElement('input');
+        hTxt.type = 'hidden';
+        hTxt.name = 'item_text';
+        hTxt.id = 'iformtxt-' + item.id;
+        fUpd.appendChild(hCsrf2);
+        fUpd.appendChild(hTxt);
+        var fDel = document.createElement('form');
+        fDel.method = 'POST';
+        fDel.action = clItemUrl('deleteItem', item.id);
+        fDel.style.display = 'inline';
+        fDel.setAttribute('onsubmit', "return confirm('Delete this item?')");
+        var hCsrf3 = document.createElement('input');
+        hCsrf3.type = 'hidden';
+        hCsrf3.name = 'csrf_token';
+        hCsrf3.value = csrfVal;
+        var bDel = document.createElement('button');
+        bDel.type = 'submit';
+        bDel.className = 'bi-btn bi-delete';
+        bDel.title = 'Delete';
+        bDel.innerHTML = '<i class="bi bi-trash"></i>';
+        fDel.appendChild(hCsrf3);
+        fDel.appendChild(bDel);
+        tdAct.appendChild(bEdit);
+        tdAct.appendChild(bSave);
+        tdAct.appendChild(bCancel);
+        tdAct.appendChild(fUpd);
+        tdAct.appendChild(fDel);
+
+        tr.appendChild(tdDrag);
+        tr.appendChild(tdNum);
+        tr.appendChild(tdDesc);
+        tr.appendChild(tdStat);
+        tr.appendChild(tdAct);
+        tbody.appendChild(tr);
+
+        clRenumberItemRows(tbody);
+        clBindSortable(tbody);
+        if (inp) {
+          inp.value = '';
+          try {
+            inp.focus({ preventScroll: true });
+          } catch (e) {
+            inp.focus();
+          }
+          var addRow = form.closest('tr');
+          (addRow || inp).scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+        }
+      })
+      .catch(function() {
+        if (btn) btn.disabled = false;
+        qcShowToast('Network error. Try again.', 'danger');
+      });
+});
+
+document.addEventListener('submit', function(ev) {
+  var form = ev.target;
+  if (!form || form.tagName !== 'FORM' || !form.classList.contains('js-ajax-create-section')) return;
+  ev.preventDefault();
+  var nameInp = form.querySelector('input[name="name"]');
+  var v = nameInp && nameInp.value.trim();
+  if (!v) return;
+  var btn = form.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  var fd = new FormData(form);
+  fetch(form.action, {
+    method: 'POST',
+    body: fd,
+    headers: {
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+    .then(function(r) {
+      return r.text().then(function(text) {
+        var data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (e) {
+          data = null;
+        }
+        return { ok: r.ok, data: data };
+      });
+    })
+    .then(function(x) {
+      if (btn) btn.disabled = false;
+      if (!x.data || !x.data.ok) {
+        var errs = (x.data && x.data.errors) ? x.data.errors : null;
+        if (!errs) {
+          errs = [!x.ok || !x.data ? 'Server error or invalid response.' : 'Could not add section.'];
+        }
+        qcShowToast(errs.join('\n'), 'danger');
+        return;
+      }
+      var root = document.getElementById('cl-sections-root');
+      if (!root || !x.data.html) return;
+      var wrap = document.createElement('div');
+      wrap.innerHTML = x.data.html.trim();
+      var card = wrap.firstElementChild;
+      if (!card) return;
+      var empty = root.querySelector('.cl-empty');
+      if (empty) empty.remove();
+      root.appendChild(card);
+      card.querySelectorAll('.cl-tbl tbody').forEach(function(tb) { clBindSortable(tb); });
+      if (nameInp) nameInp.value = '';
+      togglePanel();
+      qcShowToast(x.data.message || 'Section added.', 'success');
+      var sid = x.data.section_id;
+      if (sid) {
+        var secEl = document.getElementById('sec-' + sid);
+        if (secEl) secEl.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      }
+    })
+    .catch(function() {
+      if (btn) btn.disabled = false;
+      qcShowToast('Network error. Try again.', 'danger');
+    });
 });
 </script>
+
+<script>
+(function() {
+  function focusAddItemFieldFromQuery() {
+    var params = new URLSearchParams(window.location.search);
+    var sid = params.get('focus_section');
+    if (!sid) return;
+    var sec = document.getElementById('sec-' + sid);
+    if (!sec) return;
+    var inp = sec.querySelector('input.add-inp[name="item_text"]');
+    if (!inp) return;
+    inp.focus();
+    inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    params.delete('focus_section');
+    var q = params.toString();
+    if (history.replaceState) {
+      history.replaceState(null, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', focusAddItemFieldFromQuery);
+  } else {
+    focusAddItemFieldFromQuery();
+  }
+})();
+</script>
+
+{% if selected_template %}
+<script>
+(function() {
+  var backdrop = document.getElementById('dup-modal-backdrop');
+  var panel = document.getElementById('dup-modal-panel');
+  var form = document.getElementById('dup-template-form');
+  var errBox = document.getElementById('dup-modal-errors');
+  var errModal = document.getElementById('dupSubmitErrorModal');
+  var errModalBody = document.getElementById('dupSubmitErrorModalBody');
+  if (!backdrop || !panel || !form) return;
+
+  function showDupSubmitErrors(messages) {
+    var list = Array.isArray(messages) ? messages : [String(messages)];
+    if (errModal && errModalBody && typeof bootstrap !== 'undefined') {
+      errModalBody.innerHTML = '';
+      var ul = document.createElement('ul');
+      ul.className = 'mb-0 ps-3';
+      ul.style.cssText = 'color:#334155;line-height:1.5';
+      list.forEach(function(m) {
+        var li = document.createElement('li');
+        li.textContent = m;
+        ul.appendChild(li);
+      });
+      errModalBody.appendChild(ul);
+      new bootstrap.Modal(errModal).show();
+      return;
+    }
+    errBox.textContent = list.join(' ');
+    errBox.style.display = 'block';
+  }
+
+  function dupSyncScope() {
+    var s = document.getElementById('dup-template_scope').value;
+    var wb = document.getElementById('dup-wrap-brand');
+    if (wb) wb.style.display = (s === 'brand') ? 'block' : 'none';
+    var copyBr = document.getElementById('dup-wrap-copy-branch');
+    if (copyBr) copyBr.style.display = 'none';
+  }
+
+  function openDup() {
+    errBox.style.display = 'none';
+    errBox.textContent = '';
+    backdrop.classList.add('open');
+    panel.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    dupSyncScope();
+    var n = document.getElementById('dup-name');
+    if (n) n.focus();
+  }
+
+  function closeDup() {
+    backdrop.classList.remove('open');
+    panel.classList.remove('open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('dup-open-btn').addEventListener('click', openDup);
+  document.getElementById('dup-modal-close').addEventListener('click', closeDup);
+  document.getElementById('dup-cancel-btn').addEventListener('click', closeDup);
+  backdrop.addEventListener('click', closeDup);
+  panel.addEventListener('click', function(e) { e.stopPropagation(); });
+  document.getElementById('dup-template_scope').addEventListener('change', dupSyncScope);
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && panel.classList.contains('open')) closeDup();
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    errBox.style.display = 'none';
+    errBox.textContent = '';
+    var fd = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }); })
+    .then(function(res) {
+      if (res.ok && res.data && res.data.ok && res.data.redirect_url) {
+        window.location.href = res.data.redirect_url;
+        return;
+      }
+      if (res.data && res.data.errors && res.data.errors.length) {
+        showDupSubmitErrors(res.data.errors);
+        return;
+      }
+      showDupSubmitErrors(['Something went wrong. Please try again.']);
+    }).catch(function() {
+      showDupSubmitErrors(['Network error. Please try again.']);
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

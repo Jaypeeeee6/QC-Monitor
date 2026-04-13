@@ -51,6 +51,8 @@
   color: #fff;
   margin: 0;
   line-height: 1.2;
+  flex: 1;
+  min-width: 0;
 }
 .tmpl-card-status {
   font-size: .7rem;
@@ -72,6 +74,126 @@
   flex-direction: column;
   gap: .55rem;
 }
+.tmpl-scope-wrap {
+  align-self: flex-start;
+  max-width: 100%;
+  margin-bottom: .1rem;
+}
+.tmpl-scope-chip {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: .22rem .65rem;
+  border-radius: 20px;
+  background: #fdf9f2;
+  color: var(--gold-deeper);
+  border: 1px solid #e6ddc8;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+  font-family: inherit;
+  line-height: 1.2;
+  text-align: left;
+}
+button.tmpl-scope-chip:hover:not(:disabled) {
+  background: #fff8e8;
+  border-color: var(--gold);
+  box-shadow: 0 1px 4px rgba(212, 175, 55, .2);
+}
+button.tmpl-scope-chip:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+button.tmpl-scope-chip:disabled {
+  opacity: .75;
+  cursor: not-allowed;
+}
+.tmpl-scope-wrap.tmpl-scope-open > button.tmpl-scope-chip {
+  border-color: var(--gold);
+  background: #fff8e8;
+}
+.tmpl-scope-panel {
+  display: none;
+  margin-top: .5rem;
+  padding: .65rem .75rem;
+  border-radius: 10px;
+  border: 1px solid #e6ddc8;
+  background: #faf8f3;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.tmpl-scope-wrap.tmpl-scope-open .tmpl-scope-panel {
+  display: block;
+}
+.tmpl-scope-hint {
+  display: block;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #8a7960;
+  margin-bottom: .4rem;
+}
+.tmpl-scope-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.tmpl-scope-opt {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: .2rem .55rem;
+  border-radius: 16px;
+  border: 1px solid #d9cdb0;
+  background: #fff;
+  color: #5c4d32;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .12s, border-color .12s;
+}
+.tmpl-scope-opt:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: #fffef8;
+}
+.tmpl-scope-opt:disabled,
+.tmpl-scope-opt.is-current {
+  border-color: var(--gold);
+  background: rgba(212, 175, 55, .18);
+  color: var(--gold-deeper);
+  cursor: default;
+}
+.tmpl-scope-opt.is-current {
+  opacity: .95;
+}
+.tmpl-scope-brand-row {
+  margin-top: .5rem;
+  padding-top: .5rem;
+  border-top: 1px dashed #e6ddc8;
+}
+.tmpl-scope-back {
+  font-size: .72rem;
+  border: none;
+  background: none;
+  color: var(--gold-deeper);
+  cursor: pointer;
+  padding: 0 0 .35rem 0;
+  text-decoration: underline;
+  font-family: inherit;
+}
+.tmpl-scope-edit-link {
+  display: inline-block;
+  margin-top: .55rem;
+  font-size: .72rem;
+  color: #5b6778;
+}
+.tmpl-scope-edit-link:hover { color: var(--gold-deeper); }
+.tmpl-scope-err {
+  font-size: .75rem;
+  color: #b91c1c;
+  margin: .35rem 0 0 0;
+}
 .tmpl-meta-row {
   display: flex;
   align-items: center;
@@ -90,27 +212,29 @@
 .tmpl-desc-empty { font-style: italic; color: #bbb; font-size: .82rem; }
 
 .tmpl-card-footer {
-  padding: .85rem 1.25rem;
+  padding: .75rem 1rem;
   border-top: 1px solid #f0ebe0;
   display: flex;
-  gap: .6rem;
+  flex-wrap: wrap;
+  gap: .45rem;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .btn-tmpl-edit {
-  flex: 1;
   background: var(--gold);
   color: var(--dark-bg);
   border: none;
   border-radius: 8px;
-  padding: .5rem .9rem;
-  font-size: .84rem;
-  font-weight: 700;
-  text-align: center;
+  width: 2.45rem;
+  height: 2.45rem;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: .4rem;
   cursor: pointer;
   transition: background .15s;
 }
@@ -121,16 +245,41 @@
   color: #e74a3b;
   border: 1.5px solid #fca5a5;
   border-radius: 8px;
-  padding: .5rem .85rem;
-  font-size: .84rem;
-  font-weight: 700;
+  width: 2.45rem;
+  height: 2.45rem;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
-  gap: .35rem;
+  justify-content: center;
   cursor: pointer;
   transition: background .15s, border-color .15s;
 }
 .btn-tmpl-delete:hover { background: #fef2f2; border-color: #e74a3b; }
+
+.btn-tmpl-toggle {
+  background: #fff;
+  border-radius: 8px;
+  width: 2.45rem;
+  height: 2.45rem;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1.5px solid #fcd34d;
+  color: #92400e;
+  transition: background .15s, border-color .15s;
+}
+.btn-tmpl-toggle:hover { background: #fffbeb; border-color: #f59e0b; }
+.btn-tmpl-toggle.on {
+  border-color: #86efac;
+  color: #166534;
+}
+.btn-tmpl-toggle.on:hover { background: #f0fdf4; border-color: #22c55e; }
 
 .tmpl-empty {
   text-align: center;
@@ -144,9 +293,15 @@
 <div class="page-header">
   <div>
     <h1><i class="bi bi-journal-text me-2" style="color:var(--gold);"></i>Checklist Templates</h1>
-    <p class="subtitle">Manage the daily checklist templates assigned to branch managers</p>
+    <p class="subtitle">Manage reusable checklist templates: global, per-brand, or per-branch layers.</p>
   </div>
+  <a href="{{ url_for('admin.checklist_template_create') }}" class="btn-qc-add">
+    <i class="bi bi-plus-lg me-1"></i>Add template
+  </a>
 </div>
+
+<input type="hidden" id="tmpl-scope-csrf" value="{{ csrf_token() }}">
+<script type="application/json" id="tmpl-brands-data">{{ brands_json | tojson }}</script>
 
 {% if templates %}
 <div class="tmpl-grid">
@@ -170,6 +325,35 @@
     </div>
 
     <div class="tmpl-card-body">
+      {% set sc = (tmpl.template_scope or 'global')|lower %}
+      <div class="tmpl-scope-wrap"
+           data-scope-url="{{ url_for('admin.checklist_template_quick_scope', template_id=tmpl.id) }}"
+           data-edit-url="{{ url_for('admin.checklist_template_edit', template_id=tmpl.id) }}"
+           data-current="{{ sc }}"
+           data-tree-extra="{{ tmpl.tree_extra or 0 }}"
+           data-brand-id="{{ tmpl.brand_id if tmpl.brand_id is not none else '' }}">
+        <button type="button"
+                class="tmpl-scope-chip tmpl-scope-chip-toggle"
+                aria-expanded="false"
+                aria-haspopup="listbox"
+                title="Change where this template applies">
+          {% if sc == 'global' %}All brands & branches{% elif sc == 'brand' %}Whole brand{% elif sc == 'legacy' %}Legacy{% elif sc == 'branch' %}One branch{% else %}{{ sc }}{% endif %}
+        </button>
+        <div class="tmpl-scope-panel" role="region" aria-label="Template scope options" aria-hidden="true">
+          <span class="tmpl-scope-hint">Apply to</span>
+          <div class="tmpl-scope-chips" role="listbox">
+            <button type="button" class="tmpl-scope-opt{% if sc == 'global' %} is-current{% endif %}" data-scope-value="global"{% if sc == 'global' %} disabled aria-current="true"{% endif %}>All brands &amp; branches</button>
+            <button type="button" class="tmpl-scope-opt{% if sc == 'brand' %} is-current{% endif %}" data-scope-value="brand"{% if sc == 'brand' %} disabled aria-current="true"{% endif %}>Whole brand</button>
+          </div>
+          <div class="tmpl-scope-brand-row" hidden>
+            <button type="button" class="tmpl-scope-back" data-brand-back>← Back to scopes</button>
+            <span class="tmpl-scope-hint">Select brand</span>
+            <div class="tmpl-scope-chips tmpl-scope-brand-chips"></div>
+          </div>
+          <p class="tmpl-scope-err" hidden data-scope-err></p>
+          <a class="tmpl-scope-edit-link" href="{{ url_for('admin.checklist_template_edit', template_id=tmpl.id) }}">Name, status, and more…</a>
+        </div>
+      </div>
       {% if tmpl.description %}
         <p class="tmpl-desc">{{ tmpl.description }}</p>
       {% else %}
@@ -188,16 +372,40 @@
     </div>
 
     <div class="tmpl-card-footer">
-      <a href="{{ url_for('checklist.manage_items', template_id=tmpl.id) }}" class="btn-tmpl-edit">
-        <i class="bi bi-pencil-square"></i> Edit Checklist
+      <a href="{{ url_for('checklist.manage_items', template_id=tmpl.id) }}" class="btn-tmpl-edit"
+         title="Edit checklist structure" aria-label="Edit checklist">
+        <i class="bi bi-pencil-square" aria-hidden="true"></i>
       </a>
 
       <form method="POST"
+            action="{{ url_for('admin.toggle_checklist_template_active', template_id=tmpl.id) }}"
+            style="margin:0;display:inline"
+            onsubmit="return confirm('{% if tmpl.is_active %}Deactivate{% else %}Activate{% endif %} template &quot;{{ tmpl.name }}&quot;?{% if tmpl.is_active %}\nBranch managers will no longer see this checklist until you activate it again.{% endif %}')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if tmpl.is_active %}
+        <button type="submit" class="btn-tmpl-toggle"
+                title="Deactivate — hide from branch managers (use when template cannot be deleted)"
+                aria-label="Deactivate template">
+          <i class="bi bi-pause-circle" aria-hidden="true"></i>
+        </button>
+        {% else %}
+        <button type="submit" class="btn-tmpl-toggle on"
+                title="Activate — show again to branch managers"
+                aria-label="Activate template">
+          <i class="bi bi-play-circle" aria-hidden="true"></i>
+        </button>
+        {% endif %}
+      </form>
+
+      <form method="POST"
             action="{{ url_for('admin.delete_checklist_template', template_id=tmpl.id) }}"
+            style="margin:0;display:inline"
             onsubmit="return confirm('Delete template \'{{ tmpl.name }}\'?\nThis will also remove all its items. This cannot be undone.')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn-tmpl-delete">
-          <i class="bi bi-trash3"></i> Delete
+        <button type="submit" class="btn-tmpl-delete"
+                title="Delete template permanently"
+                aria-label="Delete template">
+          <i class="bi bi-trash3" aria-hidden="true"></i>
         </button>
       </form>
     </div>
@@ -212,5 +420,185 @@
   <p>No checklist templates found.</p>
 </div>
 {% endif %}
+
+<script>
+(function() {
+  var csrfEl = document.getElementById('tmpl-scope-csrf');
+  var brandsRaw = document.getElementById('tmpl-brands-data');
+  if (!csrfEl || !brandsRaw) return;
+  var brands = [];
+  try { brands = JSON.parse(brandsRaw.textContent || '[]'); } catch (e) {}
+  var grid = document.querySelector('.tmpl-grid');
+  if (!grid) return;
+
+  function resetBrandRow(wrap) {
+    var br = wrap.querySelector('.tmpl-scope-brand-row');
+    var pick = wrap.querySelector('.tmpl-scope-chips[role="listbox"]');
+    if (br) br.hidden = true;
+    if (pick) pick.style.display = '';
+  }
+
+  function closeOthers(except) {
+    document.querySelectorAll('.tmpl-scope-wrap.tmpl-scope-open').forEach(function(w) {
+      if (w === except) return;
+      w.classList.remove('tmpl-scope-open');
+      var btn = w.querySelector('.tmpl-scope-chip-toggle');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+      var panel = w.querySelector('.tmpl-scope-panel');
+      if (panel) panel.setAttribute('aria-hidden', 'true');
+      resetBrandRow(w);
+    });
+  }
+
+  function showErr(wrap, msg) {
+    var el = wrap.querySelector('[data-scope-err]');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
+  function hideErr(wrap) {
+    var el = wrap.querySelector('[data-scope-err]');
+    if (!el) return;
+    el.textContent = '';
+    el.hidden = true;
+  }
+
+  function postScope(wrap, scope, brandId) {
+    var url = wrap.getAttribute('data-scope-url');
+    hideErr(wrap);
+    var body = { template_scope: scope };
+    if (brandId != null && brandId !== '') body.brand_id = brandId;
+    fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfEl.value
+      },
+      body: JSON.stringify(body)
+    })
+      .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(x) {
+        var data = x.data;
+        if (data.ok) {
+          window.location.reload();
+          return;
+        }
+        if (data.needs_full_editor) {
+          window.location.href = wrap.getAttribute('data-edit-url');
+          return;
+        }
+        var err = (data.errors && data.errors.length) ? data.errors.join(' ') : 'Could not update scope.';
+        showErr(wrap, err);
+      })
+      .catch(function() {
+        showErr(wrap, 'Network error. Try again.');
+      });
+  }
+
+  function fillBrandChips(wrap) {
+    var host = wrap.querySelector('.tmpl-scope-brand-chips');
+    if (!host) return;
+    host.innerHTML = '';
+    brands.forEach(function(b) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tmpl-scope-opt';
+      btn.textContent = b.name;
+      btn.setAttribute('data-brand-pick', String(b.id));
+      host.appendChild(btn);
+    });
+  }
+
+  grid.addEventListener('click', function(e) {
+    var toggle = e.target.closest('.tmpl-scope-chip-toggle');
+    if (toggle && grid.contains(toggle)) {
+      e.stopPropagation();
+      var wrap = toggle.closest('.tmpl-scope-wrap');
+      if (!wrap) return;
+      var open = wrap.classList.toggle('tmpl-scope-open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      var panel = wrap.querySelector('.tmpl-scope-panel');
+      if (panel) panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (open) {
+        closeOthers(wrap);
+        hideErr(wrap);
+        resetBrandRow(wrap);
+      }
+      return;
+    }
+
+    var back = e.target.closest('[data-brand-back]');
+    if (back && grid.contains(back)) {
+      e.stopPropagation();
+      var wrap = back.closest('.tmpl-scope-wrap');
+      if (wrap) resetBrandRow(wrap);
+      return;
+    }
+
+    var opt = e.target.closest('[data-scope-value]');
+    if (opt && grid.contains(opt) && !opt.disabled) {
+      e.stopPropagation();
+      var wrap = opt.closest('.tmpl-scope-wrap');
+      if (!wrap) return;
+      var val = opt.getAttribute('data-scope-value');
+      hideErr(wrap);
+      if (val === 'brand') {
+        if (brands.length === 0) {
+          showErr(wrap, 'No active brands. Add a brand first or use the editor.');
+          return;
+        }
+        if (brands.length === 1) {
+          postScope(wrap, 'brand', brands[0].id);
+          return;
+        }
+        var pick = wrap.querySelector('.tmpl-scope-chips[role="listbox"]');
+        var brow = wrap.querySelector('.tmpl-scope-brand-row');
+        if (pick) pick.style.display = 'none';
+        if (brow) {
+          brow.hidden = false;
+          fillBrandChips(wrap);
+        }
+        return;
+      }
+      postScope(wrap, val, null);
+      return;
+    }
+
+    var bp = e.target.closest('[data-brand-pick]');
+    if (bp && grid.contains(bp)) {
+      e.stopPropagation();
+      var wrap = bp.closest('.tmpl-scope-wrap');
+      var bid = parseInt(bp.getAttribute('data-brand-pick'), 10);
+      postScope(wrap, 'brand', bid);
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.tmpl-scope-wrap')) return;
+    document.querySelectorAll('.tmpl-scope-wrap.tmpl-scope-open').forEach(function(w) {
+      w.classList.remove('tmpl-scope-open');
+      var btn = w.querySelector('.tmpl-scope-chip-toggle');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+      var panel = w.querySelector('.tmpl-scope-panel');
+      if (panel) panel.setAttribute('aria-hidden', 'true');
+      resetBrandRow(w);
+    });
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.tmpl-scope-wrap.tmpl-scope-open').forEach(function(w) {
+      w.classList.remove('tmpl-scope-open');
+      var btn = w.querySelector('.tmpl-scope-chip-toggle');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+      var panel = w.querySelector('.tmpl-scope-panel');
+      if (panel) panel.setAttribute('aria-hidden', 'true');
+      resetBrandRow(w);
+    });
+  });
+})();
+</script>
 
 {% endblock %}

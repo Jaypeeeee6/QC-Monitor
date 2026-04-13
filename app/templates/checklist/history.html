@@ -31,15 +31,9 @@
                         <strong style="color:#1a2744;">{{ sub.submission_date }}</strong>
                     </td>
                     <td>
-                        {% if sub.template_name == 'Food Safety' %}
-                            <span style="color:#1cc88a;font-weight:600;">
-                                <i class="bi bi-egg-fried me-1"></i>Food Safety
-                            </span>
-                        {% else %}
-                            <span style="color:#4e73df;font-weight:600;">
-                                <i class="bi bi-bucket me-1"></i>Cleaning
-                            </span>
-                        {% endif %}
+                        <span style="color:#1a2744;font-weight:600;">
+                            <i class="bi bi-journal-check me-1 text-primary"></i>{{ sub.template_name or 'Checklist' }}
+                        </span>
                     </td>
                     <td style="color:#7a869a;font-size:0.85rem;">
                         {{ sub.submitted_at[11:16] if sub.submitted_at else '—' }}
@@ -56,16 +50,12 @@
                         </div>
                     </td>
                     <td>
-                        {% if sub.template_name == 'Food Safety' %}
-                            {% if sub.score is not none %}
-                                <span class="status-pill scored">
-                                    <i class="bi bi-star-fill"></i> {{ sub.score }}/100
-                                </span>
-                            {% else %}
-                                <span class="status-pill pending">Pending</span>
-                            {% endif %}
+                        {% if sub.score is not none %}
+                            <span class="status-pill scored">
+                                <i class="bi bi-star-fill"></i> {{ sub.score }}/100
+                            </span>
                         {% else %}
-                            <span style="color:#dee2e6;">—</span>
+                            <span class="status-pill pending">Pending</span>
                         {% endif %}
                     </td>
                     <td>

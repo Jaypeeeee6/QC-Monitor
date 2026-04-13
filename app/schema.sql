@@ -27,10 +27,17 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS checklist_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     description TEXT,
     is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    parent_template_id INTEGER REFERENCES checklist_templates(id),
+    root_template_id INTEGER REFERENCES checklist_templates(id),
+    template_scope TEXT DEFAULT 'global',
+    brand_id INTEGER REFERENCES brands(id),
+    branch_id INTEGER REFERENCES branches(id),
+    template_status TEXT DEFAULT 'active',
+    version INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS checklist_sections (
@@ -40,7 +47,8 @@ CREATE TABLE IF NOT EXISTS checklist_sections (
     name TEXT NOT NULL,
     display_order INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    overrides_section_id INTEGER REFERENCES checklist_sections(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS checklist_items (
@@ -51,7 +59,8 @@ CREATE TABLE IF NOT EXISTS checklist_items (
     display_order INTEGER DEFAULT 0,
     is_active INTEGER DEFAULT 1,
     created_by INTEGER REFERENCES users(id),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    overrides_item_id INTEGER REFERENCES checklist_items(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS checklist_item_branches (
@@ -65,6 +74,7 @@ CREATE TABLE IF NOT EXISTS checklist_submissions (
     branch_id INTEGER NOT NULL REFERENCES branches(id),
     submitted_by INTEGER NOT NULL REFERENCES users(id),
     template_id INTEGER NOT NULL REFERENCES checklist_templates(id),
+    template_name_snapshot TEXT,
     submission_date DATE NOT NULL,
     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     is_locked INTEGER DEFAULT 1,
@@ -104,6 +114,20 @@ CREATE TABLE IF NOT EXISTS comment_attachments (
     original_name TEXT NOT NULL,
     uploaded_by INTEGER NOT NULL REFERENCES users(id),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS checklist_section_library (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS checklist_section_library_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    library_section_id INTEGER NOT NULL REFERENCES checklist_section_library(id) ON DELETE CASCADE,
+    item_text TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS daily_reports (

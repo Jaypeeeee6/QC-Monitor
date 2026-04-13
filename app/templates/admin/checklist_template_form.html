@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% set is_edit = is_edit|default(false) %}
+{% set edit_template_id = edit_template_id|default(none) %}
+{% set tree_extra = tree_extra|default(0) %}
+{% block title %}{% if is_edit %}Edit checklist template{% elif duplicate_source_id %}Duplicate template{% else %}New checklist template{% endif %} — QC Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-journal-{% if is_edit %}check{% else %}plus{% endif %} me-2" style="color:var(--gold);"></i>{% if is_edit %}Edit checklist template{% elif duplicate_source_id %}Duplicate checklist template{% else %}New checklist template{% endif %}</h1>
+    <p class="subtitle">{% if is_edit %}Update the name, how this template applies, and status. Changes save to the existing template.{% elif duplicate_source_id %}Adjust the name and who it applies to if needed, then create — sections are pre-filled to copy from the source.{% else %}Choose whether the checklist applies company-wide or to one brand, then optionally copy sections from an existing template.{% endif %}</p>
+  </div>
+  <a href="{{ url_for('admin.checklist_templates') }}" class="btn-back">
+    <i class="bi bi-arrow-left"></i>
+    Back to Checklist Templates
+  </a>
+</div>
+
+<style>
+.tmpl-form-card{width:100%;max-width:100%;box-sizing:border-box;background:#fff;border:1px solid #e6ddc8;border-radius:12px;padding:1.5rem 1.75rem;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.tmpl-form-card label{font-size:.8rem;font-weight:700;color:var(--gold-deeper);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem;display:block}
+.tmpl-form-card .form-control,.tmpl-form-card .form-select{font-size:.9rem}
+.tmpl-form-card .mb-3{margin-bottom:1rem!important}
+.tmpl-hint{font-size:.8rem;color:#7a869a;margin-top:.2rem}
+</style>
+{% set fp = (form_prefill if form_prefill is defined else None) or {} %}
+
+<div class="tmpl-form-card">
+  {% if is_edit and tree_extra %}
+  <div class="alert alert-info border-0 mb-3" style="background:#f0f9ff;border:1px solid #bae6fd!important;border-radius:10px;font-size:.85rem;color:#0c4a6e">
+    This template has <strong>{{ tree_extra }}</strong> linked layer(s) (brand or branch add-ons). You may change <strong>scope</strong> or <strong>brand</strong>; layers that no longer fit will be hidden from <em>new</em> checklists only. Past submissions stay on branch history.
+  </div>
+  {% endif %}
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if not is_edit %}
+    <input type="hidden" name="duplicate_from_context" id="duplicate_from_context" value="{{ duplicate_source_id or '' }}">
+    {% endif %}
+
+    <div class="mb-3">
+      <label for="name">Template name</label>
+      <input class="form-control" id="name" name="name" required placeholder="e.g. Opening checklist — Boom Burger"
+             value="{{ fp.get('name', '') }}">
+    </div>
+
+    <div class="mb-3">
+      <label for="description">Description</label>
+      <textarea class="form-control" id="description" name="description" rows="2" placeholder="Optional summary for QC">{{ fp.get('description', '') }}</textarea>
+    </div>
+
+    <div class="mb-3">
+      <label for="template_scope">Applies to</label>
+      <select class="form-select" id="template_scope" name="template_scope" onchange="syncScopeFields()">
+        <option value="global" {% if fp.get('template_scope', 'global') == 'global' %}selected{% endif %}>For all brands and branches</option>
+        <option value="brand" {% if fp.get('template_scope', 'global') == 'brand' %}selected{% endif %}>For a specific brand only</option>
+      </select>
+      <p class="tmpl-hint" id="scope-hint-global">One template for the whole company—every brand and every branch uses it as the starting point. Need different questions at just one branch? Change that in the checklist editor.</p>
+      <p class="tmpl-hint" id="scope-hint-brand" style="display:none">Every branch under the brand you pick below will use this checklist. Other brands are not included.</p>
+    </div>
+
+    <div class="mb-3" id="wrap-brand">
+      <label for="brand_id">Brand</label>
+      <select class="form-select" id="brand_id" name="brand_id">
+        <option value="">— Select brand —</option>
+        {% for br in brands %}
+        <option value="{{ br.id }}" {% if fp.get('brand_id') == br.id %}selected{% endif %}>{{ br.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="template_status">Template status</label>
+      <select class="form-select" id="template_status" name="template_status">
+        <option value="active" {% if fp.get('template_status', 'active') == 'active' %}selected{% endif %}>Active</option>
+        <option value="draft" {% if fp.get('template_status', 'active') == 'draft' %}selected{% endif %}>Draft</option>
+      </select>
+    </div>
+
+    {% if not is_edit %}
+    <div class="mb-3">
+      <label for="start_from">Start from</label>
+      <select class="form-select" id="start_from" name="start_from" onchange="syncCopyFields()">
+        <option value="blank" {% if fp.get('start_from', 'blank') == 'blank' %}selected{% endif %}>Blank — no sections yet</option>
+        <option value="copy_selected" {% if fp.get('start_from', 'blank') == 'copy_selected' %}selected{% endif %}>Copy sections from another template…</option>
+      </select>
+    </div>
+
+    <div class="mb-3" id="wrap-copy-source" style="display:none">
+      <label for="copy_source_id">Copy from template</label>
+      <select class="form-select" id="copy_source_id" name="copy_source_id">
+        <option value="">— Pick source —</option>
+        {% for r in all_templates %}
+        <option value="{{ r.id }}" {% if fp.get('copy_source_id') == r.id %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3" id="wrap-copy-branch" style="display:none">
+      <label for="copy_branch_id">When source is per-branch, copy from which branch?</label>
+      <select class="form-select" id="copy_branch_id" name="copy_branch_id">
+        <option value="">— Any / first match —</option>
+        {% for b in branches %}
+        <option value="{{ b.id }}" {% if fp.get('copy_branch_id') == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary" style="background:var(--gold);border:none;color:var(--dark-bg);font-weight:700">
+      {% if is_edit %}Save changes{% else %}Create template{% endif %}
+    </button>
+  </form>
+</div>
+
+<script>
+function syncScopeFields() {
+  const s = document.getElementById('template_scope').value;
+  const isBrand = s === 'brand';
+  document.getElementById('wrap-brand').style.display = isBrand ? 'block' : 'none';
+  const hg = document.getElementById('scope-hint-global');
+  const hb = document.getElementById('scope-hint-brand');
+  if (hg) hg.style.display = isBrand ? 'none' : 'block';
+  if (hb) hb.style.display = isBrand ? 'block' : 'none';
+}
+function syncCopyFields() {
+  const start = document.getElementById('start_from');
+  if (!start) return;
+  const on = start.value === 'copy_selected';
+  document.getElementById('wrap-copy-source').style.display = on ? 'block' : 'none';
+  document.getElementById('wrap-copy-branch').style.display = on ? 'block' : 'none';
+}
+syncScopeFields();
+syncCopyFields();
+{% if duplicate_source_id %}
+(function () {
+  var start = document.getElementById('start_from');
+  var copySel = document.getElementById('copy_source_id');
+  var nameInp = document.getElementById('name');
+  if (start && copySel) {
+    start.value = 'copy_selected';
+    copySel.value = String({{ duplicate_source_id }});
+    syncCopyFields();
+  }
+  if (nameInp && !nameInp.value) {
+    nameInp.value = {{ (suggested_name or '') | tojson }};
+  }
+})();
+{% endif %}
+</script>
+
+{% if template_errors is defined and template_errors %}
+<div class="modal fade" id="templateFormErrorModal" tabindex="-1" aria-labelledby="templateFormErrorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:1px solid #e6ddc8;border-radius:12px;overflow:hidden">
+      <div class="modal-header border-0 py-3" style="background:var(--dark-bg);">
+        <h5 class="modal-title fw-bold mb-0" id="templateFormErrorModalLabel" style="color:var(--gold);">
+          <i class="bi bi-exclamation-octagon me-2"></i>{% if is_edit|default(false) %}Could not save template{% else %}Could not create template{% endif %}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <ul class="mb-0 ps-3" style="color:#334155;line-height:1.5">
+          {% for err in template_errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn fw-bold" data-bs-dismiss="modal" style="background:var(--gold);border:none;color:var(--dark-bg);padding:.4rem 1.25rem">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var el = document.getElementById('templateFormErrorModal');
+  if (!el || typeof bootstrap === 'undefined') return;
+  new bootstrap.Modal(el).show();
+});
+</script>
+{% endif %}
+{% endblock %}

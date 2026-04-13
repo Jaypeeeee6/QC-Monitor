@@ -1,0 +1,62 @@
+{# Slide-over: duplicate checklist template (POSTs via fetch to admin.checklist_template_create) #}
+<div id="dup-modal-backdrop" class="dup-backdrop" aria-hidden="true"></div>
+<aside id="dup-modal-panel" class="dup-panel" role="dialog" aria-labelledby="dup-modal-title" aria-modal="true">
+  <div class="dup-panel-head">
+    <h2 id="dup-modal-title" class="dup-panel-title">Duplicate checklist</h2>
+    <button type="button" class="dup-close" id="dup-modal-close" aria-label="Close">&times;</button>
+  </div>
+  <p class="dup-panel-intro">Creates a new template and copies sections from <strong>{{ selected_template.name }}</strong>. Adjust the options below, then save.</p>
+  <div id="dup-modal-errors" class="dup-errors" style="display:none" role="alert"></div>
+  <form id="dup-template-form" method="post" action="{{ url_for('admin.checklist_template_create') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="duplicate_from_context" value="{{ dup_source_template_id }}">
+    <input type="hidden" name="start_from" value="copy_selected">
+    <input type="hidden" name="copy_source_id" value="{{ dup_source_template_id }}">
+
+    <div class="dup-field">
+      <label for="dup-name">Name</label>
+      <input class="form-control" id="dup-name" name="name" required value="{{ dup_suggested_name }}">
+    </div>
+    <div class="dup-field">
+      <label for="dup-description">Description <span class="dup-optional">(optional)</span></label>
+      <textarea class="form-control" id="dup-description" name="description" rows="2"></textarea>
+    </div>
+    <div class="dup-field">
+      <label for="dup-template_scope">How it applies</label>
+      <select class="form-select" id="dup-template_scope" name="template_scope">
+        <option value="global" selected>All brands &amp; branches</option>
+        <option value="brand">Whole brand only</option>
+      </select>
+    </div>
+    <div class="dup-field" id="dup-wrap-brand" style="display:none">
+      <label for="dup-brand_id">Brand</label>
+      <select class="form-select" id="dup-brand_id" name="brand_id">
+        <option value="">— Select —</option>
+        {% for br in dup_brands %}
+        <option value="{{ br.id }}">{{ br.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="dup-field">
+      <label for="dup-template_status">Status</label>
+      <select class="form-select" id="dup-template_status" name="template_status">
+        <option value="active" selected>Active</option>
+        <option value="draft">Draft</option>
+      </select>
+    </div>
+    <div class="dup-field" id="dup-wrap-copy-branch">
+      <label for="dup-copy_branch_id">Copy items from which branch?</label>
+      <p class="dup-hint">Only matters when the source checklist is different per branch. Defaults to the branch you have open in the sidebar.</p>
+      <select class="form-select" id="dup-copy_branch_id" name="copy_branch_id">
+        <option value="">— First available —</option>
+        {% for b in dup_branches %}
+        <option value="{{ b.id }}" {% if selected_branch_id is not none and b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="dup-actions">
+      <button type="button" class="btn btn-outline-secondary" id="dup-cancel-btn">Cancel</button>
+      <button type="submit" class="btn btn-primary dup-submit" style="background:var(--gold);border:none;color:var(--dark-bg);font-weight:700">Create template</button>
+    </div>
+  </form>
+</aside>
