@@ -133,7 +133,7 @@ def reports():
     db = get_db()
 
     today = local_today()
-    default_from = (local_now().date() - timedelta(days=30)).isoformat()
+    default_from = today
 
     filter_branch = request.args.get('branch_id', '')
     filter_from = request.args.get('date_from', default_from)
@@ -176,6 +176,36 @@ def reports():
     scored = [s['score'] for s in submissions if s['score'] is not None]
     avg_score = round(sum(scored) / len(scored), 1) if scored else None
 
+    # Branch score comparison (average scored checklists within current filters)
+    branch_score_query = '''
+        SELECT b.name AS branch_name,
+               AVG(s.score) AS avg_score,
+               COUNT(s.id) AS scored_count
+        FROM branches b
+        LEFT JOIN checklist_submissions cs
+               ON cs.branch_id = b.id
+              AND cs.submission_date BETWEEN ? AND ?
+        LEFT JOIN scores s ON s.submission_id = cs.id
+    '''
+    branch_score_params = [filter_from, filter_to]
+    if filter_branch:
+        branch_score_query += ' WHERE b.id = ?'
+        branch_score_params.append(filter_branch)
+    branch_score_query += '''
+        GROUP BY b.id, b.name
+        HAVING COUNT(s.id) > 0
+        ORDER BY avg_score DESC, b.name
+    '''
+    branch_score_rows = db.execute(branch_score_query, branch_score_params).fetchall()
+    branch_score_data = [
+        {
+            'branch_name': r['branch_name'],
+            'avg_score': round(r['avg_score'], 1),
+            'scored_count': r['scored_count'],
+        }
+        for r in branch_score_rows
+    ]
+
     return render_template(
         'dashboard/reports.html',
         submissions=submissions,
@@ -185,4 +215,5 @@ def reports():
         filter_to=filter_to,
         avg_score=avg_score,
         total_submissions=len(submissions),
+        branch_score_data=branch_score_data,
     )
