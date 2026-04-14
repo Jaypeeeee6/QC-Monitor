@@ -31,6 +31,7 @@
 .cl-checklist-tbl tbody tr.item-row{border-bottom:1px solid #f0ebe0}
 .cl-checklist-tbl tbody tr.item-row:last-child{border-bottom:none}
 .cl-checklist-tbl tbody tr.item-row:hover{background:#fdf9f2}
+.cl-checklist-tbl tbody tr.item-row.item-error{background:#fff5f5}
 .cl-checklist-tbl td{padding:.6rem 1rem;vertical-align:middle}
 .cl-checklist-tbl td.td-no{text-align:center;color:#aaa;font-size:.8rem;font-weight:700}
 .cl-checklist-tbl td.td-check{text-align:center}
@@ -177,21 +178,20 @@ function toggleCheck(key) {
   const cb  = document.getElementById('cb-'  + key);
   const ans = document.getElementById('ans-' + key);
   const rmk = document.getElementById('rmk-' + key);
-  const req = document.getElementById('req-' + key);
   const row = document.getElementById('row-' + key);
 
   if (state[key]) {
     cb.classList.add('checked');
     ans.value = 'yes';
     rmk.classList.remove('visible');
-    req.classList.remove('visible');
+    rmk.required = false;
     rmk.value = '';
     row.classList.remove('item-error');
   } else {
     cb.classList.remove('checked');
     ans.value = 'no';
     rmk.classList.add('visible');
-    row.classList.remove('item-error');
+    rmk.required = true;
   }
   updateProgress();
 }
@@ -211,17 +211,37 @@ document.addEventListener('DOMContentLoaded', function () {
     state[key] = false; // default: unchecked = no
     document.getElementById('ans-' + key).value = 'no';
     // Show remarks by default since default is "no"
-    document.getElementById('rmk-' + key).classList.add('visible');
+    const rmk = document.getElementById('rmk-' + key);
+    rmk.classList.add('visible');
+    rmk.required = true;
   });
 
   updateProgress();
 });
 
 // Ensure all hidden answer fields have a value before submit
-document.getElementById('cl-form').addEventListener('submit', function () {
+document.getElementById('cl-form').addEventListener('submit', function (e) {
+  let hasError = false;
+  document.querySelectorAll('[id^="row-"]').forEach(function (row) {
+    row.classList.remove('item-error');
+  });
   document.querySelectorAll('[id^="ans-"]').forEach(function (el) {
     if (!el.value) el.value = 'no';
+    const key = el.id.replace('ans-', '');
+    const rmk = document.getElementById('rmk-' + key);
+    const row = document.getElementById('row-' + key);
+    if (el.value === 'no') {
+      const ok = rmk && rmk.value.trim().length > 0;
+      if (!ok) {
+        hasError = true;
+        if (row) row.classList.add('item-error');
+      }
+    }
   });
+  if (hasError) {
+    e.preventDefault();
+    alert('Remarks are required for every unchecked item.');
+  }
 });
 </script>
 {% endblock %}

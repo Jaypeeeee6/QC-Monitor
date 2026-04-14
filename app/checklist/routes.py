@@ -121,11 +121,20 @@ def index():
 def submit_today():
     db = get_db()
     today = local_today()
+    focused_template_id = request.args.get('template_id', type=int)
 
     templates = list_branch_manager_templates(db, current_user.branch_id)
     if not templates:
         flash('No checklists are configured for your branch yet. Contact your QC Admin.', 'info')
         return redirect(url_for('checklist.index'))
+
+    focused_template = None
+    if focused_template_id:
+        focused_template = next((t for t in templates if t['id'] == focused_template_id), None)
+        if not focused_template:
+            abort(404)
+        # When a template is chosen from index, show only that template's checklist.
+        templates = [focused_template]
 
     # Which templates are already submitted today?
     existing = {}
@@ -136,6 +145,10 @@ def submit_today():
             (current_user.branch_id, tmpl['id'], today)
         ).fetchone()
         existing[tmpl['id']] = sub['id'] if sub else None
+
+    if focused_template and existing[focused_template['id']] is not None:
+        flash('You have already submitted this checklist today.', 'info')
+        return redirect(url_for('checklist.view', submission_id=existing[focused_template['id']]))
 
     # If everything already submitted, redirect back
     if templates and all(existing[t['id']] is not None for t in templates):
@@ -172,6 +185,10 @@ def submit_today():
                 if answer not in ('yes', 'no'):
                     # Treat unanswered as 'no' with no reason
                     answer = 'no'
+                if answer == 'no' and not reason:
+                    all_errors.append(
+                        f'Remarks are required when unchecked for: "{item["item_text"]}"'
+                    )
                 responses.append({
                     'item_id': item['id'],
                     'answer': answer,
@@ -187,7 +204,8 @@ def submit_today():
                                    sections_by_template=sections_by_template,
                                    items_by_template=items_by_template,
                                    existing=existing,
-                                   today=today)
+                                   today=today,
+                                   focused_template_id=focused_template_id)
 
         did_submit = False
         for tmpl in templates:
@@ -231,10 +249,14 @@ def submit_today():
                 items_by_template=items_by_template,
                 existing=existing,
                 today=today,
+                focused_template_id=focused_template_id,
             )
 
         db.commit()
-        flash('Daily checklist submitted successfully!', 'success')
+        if focused_template:
+            flash(f'{focused_template["name"]} checklist submitted successfully!', 'success')
+        else:
+            flash('Daily checklist submitted successfully!', 'success')
         return redirect(url_for('checklist.index'))
 
     return render_template('checklist/submit_all.html',
@@ -242,7 +264,8 @@ def submit_today():
                            sections_by_template=sections_by_template,
                            items_by_template=items_by_template,
                            existing=existing,
-                           today=today)
+                           today=today,
+                           focused_template_id=focused_template_id)
 
 
 @checklist_bp.route('/submit/<int:template_id>', methods=['GET', 'POST'])
@@ -589,6 +612,7 @@ def all_submissions():
 
     query = '''
         SELECT cs.id, cs.submission_date, cs.submitted_at,
+               COALESCE(cs.template_name_snapshot, ct.name) AS template_name,
                b.name as branch_name,
                br.name as brand_name,
                u.full_name as submitted_by_name,
@@ -597,6 +621,7 @@ def all_submissions():
                s.score,
                (SELECT COUNT(*) FROM comments c WHERE c.submission_id = cs.id) as comment_count
         FROM checklist_submissions cs
+        LEFT JOIN checklist_templates ct ON ct.id = cs.template_id
         JOIN branches b ON b.id = cs.branch_id
         LEFT JOIN brands br ON br.id = b.brand_id
         JOIN users u ON u.id = cs.submitted_by

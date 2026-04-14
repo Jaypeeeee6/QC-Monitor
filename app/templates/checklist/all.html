@@ -101,6 +101,7 @@
         <table class="qc-table">
             <thead>
                 <tr>
+                    <th>Checklist</th>
                     <th>Brand</th>
                     <th>Branch</th>
                     <th>Submitted By</th>
@@ -119,6 +120,11 @@
                     style="cursor:pointer;"
                     data-submission-id="{{ sub.id }}"
                     data-full-url="{{ url_for('checklist.view', submission_id=sub.id) }}">
+                    <td>
+                        <span style="font-size:0.78rem;font-weight:600;color:#344054;">
+                            {{ sub.template_name or 'Checklist' }}
+                        </span>
+                    </td>
                     <td>
                         {% if sub.brand_name %}
                         <span style="font-size:0.78rem;font-weight:600;color:var(--gold-deeper);
