@@ -133,11 +133,9 @@ def reports():
     db = get_db()
 
     today = local_today()
-    default_from = today
 
     filter_branch = request.args.get('branch_id', '')
-    filter_from = request.args.get('date_from', default_from)
-    filter_to = request.args.get('date_to', today)
+    filter_day = request.args.get('date', today)
 
     branches = db.execute(
         '''SELECT b.id, b.name, br.name as brand_name
@@ -161,9 +159,9 @@ def reports():
         JOIN users u ON u.id = cs.submitted_by
         LEFT JOIN checklist_responses cr ON cr.submission_id = cs.id
         LEFT JOIN scores s ON s.submission_id = cs.id
-        WHERE cs.submission_date BETWEEN ? AND ?
+        WHERE cs.submission_date = ?
     '''
-    params = [filter_from, filter_to]
+    params = [filter_day]
 
     if filter_branch:
         query += ' AND cs.branch_id = ?'
@@ -176,31 +174,32 @@ def reports():
     scored = [s['score'] for s in submissions if s['score'] is not None]
     avg_score = round(sum(scored) / len(scored), 1) if scored else None
 
-    # Per-day average score trend (within selected date range)
-    daily_avg_query = '''
-        SELECT cs.submission_date,
+    # Selected-day branch comparison (one day only)
+    daily_branch_query = '''
+        SELECT b.name AS branch_name,
                AVG(s.score) AS avg_score,
                COUNT(s.id) AS scored_count
         FROM checklist_submissions cs
+        JOIN branches b ON b.id = cs.branch_id
         JOIN scores s ON s.submission_id = cs.id
-        WHERE cs.submission_date BETWEEN ? AND ?
+        WHERE cs.submission_date = ?
     '''
-    daily_avg_params = [filter_from, filter_to]
+    daily_branch_params = [filter_day]
     if filter_branch:
-        daily_avg_query += ' AND cs.branch_id = ?'
-        daily_avg_params.append(filter_branch)
-    daily_avg_query += '''
-        GROUP BY cs.submission_date
-        ORDER BY cs.submission_date
+        daily_branch_query += ' AND cs.branch_id = ?'
+        daily_branch_params.append(filter_branch)
+    daily_branch_query += '''
+        GROUP BY b.id, b.name
+        ORDER BY avg_score DESC, b.name
     '''
-    daily_avg_rows = db.execute(daily_avg_query, daily_avg_params).fetchall()
-    daily_avg_score_data = [
+    daily_branch_rows = db.execute(daily_branch_query, daily_branch_params).fetchall()
+    daily_branch_score_data = [
         {
-            'submission_date': r['submission_date'],
+            'branch_name': r['branch_name'],
             'avg_score': round(r['avg_score'], 1),
             'scored_count': r['scored_count'],
         }
-        for r in daily_avg_rows
+        for r in daily_branch_rows
     ]
 
     # All-time branch comparison (average scored checklists across all dates)
@@ -236,10 +235,9 @@ def reports():
         submissions=submissions,
         branches=branches,
         filter_branch=filter_branch,
-        filter_from=filter_from,
-        filter_to=filter_to,
+        filter_day=filter_day,
         avg_score=avg_score,
         total_submissions=len(submissions),
-        daily_avg_score_data=daily_avg_score_data,
+        daily_branch_score_data=daily_branch_score_data,
         all_time_branch_score_data=all_time_branch_score_data,
     )

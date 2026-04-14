@@ -6,7 +6,7 @@
     <div>
         <h1><i class="bi bi-bar-chart-line me-2" style="color:var(--gold);"></i>Reports</h1>
         <p class="subtitle">
-            {{ total_submissions }} submission{{ 's' if total_submissions != 1 }}
+            {{ total_submissions }} submission{{ 's' if total_submissions != 1 }} on {{ filter_day }}
             {% if avg_score is not none %} &mdash; Avg QC Score: <strong>{{ avg_score }}/100</strong>{% endif %}
         </p>
     </div>
@@ -16,12 +16,8 @@
 <form method="GET" action="{{ url_for('dashboard.reports') }}" id="reportsFilterForm">
     <div class="filter-bar">
         <div class="filter-group">
-            <label>From</label>
-            <input type="date" name="date_from" value="{{ filter_from }}">
-        </div>
-        <div class="filter-group">
-            <label>To</label>
-            <input type="date" name="date_to" value="{{ filter_to }}">
+            <label>Day</label>
+            <input type="date" name="date" value="{{ filter_day }}">
         </div>
         <div class="filter-group">
             <label>Branch</label>
@@ -45,16 +41,8 @@
 </form>
 
 <!-- Summary Cards -->
-{% if daily_avg_score_data or all_time_branch_score_data %}
+{% if daily_branch_score_data or all_time_branch_score_data %}
 <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        <div class="stat-card blue">
-            <div class="stat-label">Days With Scores</div>
-            <div class="stat-value">{{ daily_avg_score_data | length }}</div>
-            <div class="stat-sub">{{ filter_from }} – {{ filter_to }}</div>
-            <i class="bi bi-calendar3 stat-icon"></i>
-        </div>
-    </div>
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card yellow">
             <div class="stat-label">All-Time Branches</div>
@@ -67,7 +55,7 @@
         <div class="stat-card teal">
             <div class="stat-label">Period Avg Score</div>
             <div class="stat-value">{{ avg_score if avg_score is not none else '—' }}</div>
-            <div class="stat-sub">{{ filter_from }} – {{ filter_to }}</div>
+            <div class="stat-sub">{{ filter_day }}</div>
             <i class="bi bi-award stat-icon"></i>
         </div>
     </div>
@@ -80,9 +68,9 @@
         <h5><i class="bi bi-graph-up-arrow me-2"></i>Per-Day Average Score</h5>
     </div>
     <div class="card-body-pad">
-        {% if daily_avg_score_data %}
+        {% if daily_branch_score_data %}
         <div style="font-size:0.8rem;color:#7a869a;margin-bottom:0.6rem;">
-            Average QC score per day from {{ filter_from }} to {{ filter_to }}
+            Branch average score comparison for {{ filter_day }}
         </div>
         <div style="height:320px;">
             <canvas id="dailyAvgScoreChart"></canvas>
@@ -90,7 +78,7 @@
         {% else %}
         <div class="empty-state" style="padding:1.5rem 1rem;">
             <i class="bi bi-graph-up-arrow"></i>
-            <p>No scored submissions in this date range to chart yet.</p>
+            <p>No scored submissions found for this day.</p>
         </div>
         {% endif %}
     </div>
@@ -121,26 +109,27 @@
 {% endblock %}
 
 {% block scripts %}
-{% if daily_avg_score_data or all_time_branch_score_data %}
+{% if daily_branch_score_data or all_time_branch_score_data %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-    const dailyData = {{ daily_avg_score_data | tojson }};
+    const dailyData = {{ daily_branch_score_data | tojson }};
     const allTimeData = {{ all_time_branch_score_data | tojson }};
 
     const dailyCtx = document.getElementById('dailyAvgScoreChart');
     if (dailyCtx && dailyData.length) {
-        const dailyLabels = dailyData.map(function(x) { return x.submission_date; });
-        const dailyScores = dailyData.map(function(x) { return x.avg_score; });
-        const dailyCounts = dailyData.map(function(x) { return x.scored_count; });
+        const labels = dailyData.map(function(x) { return x.branch_name; });
+        const scores = dailyData.map(function(x) { return x.avg_score; });
+        const counts = dailyData.map(function(x) { return x.scored_count; });
 
         new Chart(dailyCtx, {
             type: 'bar',
             data: {
-                labels: dailyLabels,
+                labels: labels,
                 datasets: [{
-                    label: 'Daily Avg Score',
-                    data: dailyScores,
+                    label: 'Avg Score',
+                    data: scores,
+                    dailyCounts: counts,
                     backgroundColor: '#4e73df',
                     borderColor: '#3658b5',
                     borderWidth: 1.5,
@@ -157,7 +146,8 @@
                         callbacks: {
                             label: function(context) {
                                 const idx = context.dataIndex;
-                                return 'Avg Score: ' + context.parsed.y + '/100 (' + dailyCounts[idx] + ' scored)';
+                                const cnt = context.dataset.dailyCounts[idx] || 0;
+                                return 'Avg Score: ' + context.parsed.y + '/100 (' + cnt + ' scored)';
                             }
                         }
                     }
