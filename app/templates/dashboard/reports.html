@@ -45,19 +45,27 @@
 </form>
 
 <!-- Summary Cards -->
-{% if branch_score_data %}
+{% if daily_avg_score_data or all_time_branch_score_data %}
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card blue">
-            <div class="stat-label">Branches Compared</div>
-            <div class="stat-value">{{ branch_score_data | length }}</div>
+            <div class="stat-label">Days With Scores</div>
+            <div class="stat-value">{{ daily_avg_score_data | length }}</div>
+            <div class="stat-sub">{{ filter_from }} – {{ filter_to }}</div>
+            <i class="bi bi-calendar3 stat-icon"></i>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card yellow">
+            <div class="stat-label">All-Time Branches</div>
+            <div class="stat-value">{{ all_time_branch_score_data | length }}</div>
             <div class="stat-sub">With scored checklists</div>
             <i class="bi bi-building stat-icon"></i>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
-        <div class="stat-card yellow">
-            <div class="stat-label">Avg QC Score</div>
+        <div class="stat-card teal">
+            <div class="stat-label">Period Avg Score</div>
             <div class="stat-value">{{ avg_score if avg_score is not none else '—' }}</div>
             <div class="stat-sub">{{ filter_from }} – {{ filter_to }}</div>
             <i class="bi bi-award stat-icon"></i>
@@ -66,23 +74,45 @@
 </div>
 {% endif %}
 
-<!-- Branch Score Comparison -->
+<!-- Per-day average score -->
 <div class="qc-card mb-4">
     <div class="card-header-bar">
-        <h5><i class="bi bi-bar-chart me-2"></i>Branch Score Comparison</h5>
+        <h5><i class="bi bi-graph-up-arrow me-2"></i>Per-Day Average Score</h5>
     </div>
     <div class="card-body-pad">
-        {% if branch_score_data %}
+        {% if daily_avg_score_data %}
         <div style="font-size:0.8rem;color:#7a869a;margin-bottom:0.6rem;">
-            Comparing average QC scores by branch for {{ filter_from }} to {{ filter_to }}
+            Average QC score per day from {{ filter_from }} to {{ filter_to }}
         </div>
         <div style="height:320px;">
-            <canvas id="branchScoreChart"></canvas>
+            <canvas id="dailyAvgScoreChart"></canvas>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1.5rem 1rem;">
+            <i class="bi bi-graph-up-arrow"></i>
+            <p>No scored submissions in this date range to chart yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- All-time branch average comparison -->
+<div class="qc-card mb-4">
+    <div class="card-header-bar">
+        <h5><i class="bi bi-bar-chart me-2"></i>All-Time Branch Avg Score Comparison</h5>
+    </div>
+    <div class="card-body-pad">
+        {% if all_time_branch_score_data %}
+        <div style="font-size:0.8rem;color:#7a869a;margin-bottom:0.6rem;">
+            Average QC score per branch across all scored submissions
+        </div>
+        <div style="height:320px;">
+            <canvas id="allTimeBranchScoreChart"></canvas>
         </div>
         {% else %}
         <div class="empty-state" style="padding:1.5rem 1rem;">
             <i class="bi bi-bar-chart"></i>
-            <p>No scored submissions in this date range to chart yet.</p>
+            <p>No all-time scored submissions available to compare yet.</p>
         </div>
         {% endif %}
     </div>
@@ -91,62 +121,108 @@
 {% endblock %}
 
 {% block scripts %}
-{% if branch_score_data %}
+{% if daily_avg_score_data or all_time_branch_score_data %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-    const chartData = {{ branch_score_data | tojson }};
-    if (!chartData.length) return;
+    const dailyData = {{ daily_avg_score_data | tojson }};
+    const allTimeData = {{ all_time_branch_score_data | tojson }};
 
-    const labels = chartData.map(function(x) { return x.branch_name; });
-    const scores = chartData.map(function(x) { return x.avg_score; });
-    const counts = chartData.map(function(x) { return x.scored_count; });
-    const ctx = document.getElementById('branchScoreChart');
-    if (!ctx) return;
+    const dailyCtx = document.getElementById('dailyAvgScoreChart');
+    if (dailyCtx && dailyData.length) {
+        const dailyLabels = dailyData.map(function(x) { return x.submission_date; });
+        const dailyScores = dailyData.map(function(x) { return x.avg_score; });
+        const dailyCounts = dailyData.map(function(x) { return x.scored_count; });
 
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Average QC Score',
-                data: scores,
-                backgroundColor: '#d4af37',
-                borderColor: '#b8941f',
-                borderWidth: 1.5,
-                borderRadius: 6,
-                maxBarThickness: 48
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const idx = context.dataIndex;
-                            return 'Avg Score: ' + context.parsed.y + '/100 (' + counts[idx] + ' scored)';
+        new Chart(dailyCtx, {
+            type: 'bar',
+            data: {
+                labels: dailyLabels,
+                datasets: [{
+                    label: 'Daily Avg Score',
+                    data: dailyScores,
+                    backgroundColor: '#4e73df',
+                    borderColor: '#3658b5',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    maxBarThickness: 48
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const idx = context.dataIndex;
+                                return 'Avg Score: ' + context.parsed.y + '/100 (' + dailyCounts[idx] + ' scored)';
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: { stepSize: 10 }
                 },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 0
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { stepSize: 10 }
                     }
                 }
             }
-        }
-    });
+        });
+    }
+
+    const allTimeCtx = document.getElementById('allTimeBranchScoreChart');
+    if (allTimeCtx && allTimeData.length) {
+        const labels = allTimeData.map(function(x) { return x.branch_name; });
+        const scores = allTimeData.map(function(x) { return x.avg_score; });
+        const counts = allTimeData.map(function(x) { return x.scored_count; });
+
+        new Chart(allTimeCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'All-Time Branch Avg Score',
+                    data: scores,
+                    backgroundColor: '#d4af37',
+                    borderColor: '#b8941f',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    maxBarThickness: 48
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const idx = context.dataIndex;
+                                return 'Avg Score: ' + context.parsed.y + '/100 (' + counts[idx] + ' scored)';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { stepSize: 10 }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
 })();
 </script>
 {% endif %}

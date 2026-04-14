@@ -176,34 +176,59 @@ def reports():
     scored = [s['score'] for s in submissions if s['score'] is not None]
     avg_score = round(sum(scored) / len(scored), 1) if scored else None
 
-    # Branch score comparison (average scored checklists within current filters)
-    branch_score_query = '''
+    # Per-day average score trend (within selected date range)
+    daily_avg_query = '''
+        SELECT cs.submission_date,
+               AVG(s.score) AS avg_score,
+               COUNT(s.id) AS scored_count
+        FROM checklist_submissions cs
+        JOIN scores s ON s.submission_id = cs.id
+        WHERE cs.submission_date BETWEEN ? AND ?
+    '''
+    daily_avg_params = [filter_from, filter_to]
+    if filter_branch:
+        daily_avg_query += ' AND cs.branch_id = ?'
+        daily_avg_params.append(filter_branch)
+    daily_avg_query += '''
+        GROUP BY cs.submission_date
+        ORDER BY cs.submission_date
+    '''
+    daily_avg_rows = db.execute(daily_avg_query, daily_avg_params).fetchall()
+    daily_avg_score_data = [
+        {
+            'submission_date': r['submission_date'],
+            'avg_score': round(r['avg_score'], 1),
+            'scored_count': r['scored_count'],
+        }
+        for r in daily_avg_rows
+    ]
+
+    # All-time branch comparison (average scored checklists across all dates)
+    all_time_branch_query = '''
         SELECT b.name AS branch_name,
                AVG(s.score) AS avg_score,
                COUNT(s.id) AS scored_count
         FROM branches b
-        LEFT JOIN checklist_submissions cs
-               ON cs.branch_id = b.id
-              AND cs.submission_date BETWEEN ? AND ?
+        LEFT JOIN checklist_submissions cs ON cs.branch_id = b.id
         LEFT JOIN scores s ON s.submission_id = cs.id
     '''
-    branch_score_params = [filter_from, filter_to]
+    all_time_branch_params = []
     if filter_branch:
-        branch_score_query += ' WHERE b.id = ?'
-        branch_score_params.append(filter_branch)
-    branch_score_query += '''
+        all_time_branch_query += ' WHERE b.id = ?'
+        all_time_branch_params.append(filter_branch)
+    all_time_branch_query += '''
         GROUP BY b.id, b.name
         HAVING COUNT(s.id) > 0
         ORDER BY avg_score DESC, b.name
     '''
-    branch_score_rows = db.execute(branch_score_query, branch_score_params).fetchall()
-    branch_score_data = [
+    all_time_branch_rows = db.execute(all_time_branch_query, all_time_branch_params).fetchall()
+    all_time_branch_score_data = [
         {
             'branch_name': r['branch_name'],
             'avg_score': round(r['avg_score'], 1),
             'scored_count': r['scored_count'],
         }
-        for r in branch_score_rows
+        for r in all_time_branch_rows
     ]
 
     return render_template(
@@ -215,5 +240,6 @@ def reports():
         filter_to=filter_to,
         avg_score=avg_score,
         total_submissions=len(submissions),
-        branch_score_data=branch_score_data,
+        daily_avg_score_data=daily_avg_score_data,
+        all_time_branch_score_data=all_time_branch_score_data,
     )
