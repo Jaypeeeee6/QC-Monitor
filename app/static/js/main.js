@@ -17,6 +17,25 @@ document.addEventListener('DOMContentLoaded', function () {
         initChecklistForm();
     }
 
+    // ===== PASSWORD SHOW/HIDE (custom toggle; Edge native eye only shows while focused) =====
+    document.querySelectorAll('.qc-password-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const wrap = btn.closest('.qc-password-wrap');
+            if (!wrap) return;
+            const input = wrap.querySelector('input');
+            if (!input) return;
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+            }
+        });
+    });
+
     // ===== AUTO-DISMISS ALERTS =====
     document.querySelectorAll('.alert-auto-dismiss').forEach(function (alert) {
         setTimeout(function () {

@@ -81,16 +81,28 @@
                         <div class="col-md-6">
                             <div class="qc-input-group">
                                 <label>Password</label>
-                                <input type="password" name="password"
-                                       placeholder="Min 6 characters" required minlength="6">
+                                <div class="qc-password-wrap">
+                                    <input type="password" name="password" id="createUserPassword"
+                                           placeholder="Min 6 characters" required minlength="6"
+                                           autocomplete="new-password">
+                                    <button type="button" class="qc-password-toggle" aria-label="Show password" aria-pressed="false">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="qc-input-group">
                                 <label>Confirm Password</label>
-                                <input type="password" name="confirm_password"
-                                       placeholder="Repeat password" required>
+                                <div class="qc-password-wrap">
+                                    <input type="password" name="confirm_password" id="createUserConfirmPassword"
+                                           placeholder="Repeat password" required
+                                           autocomplete="new-password">
+                                    <button type="button" class="qc-password-toggle" aria-label="Show password" aria-pressed="false">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

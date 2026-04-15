@@ -1054,6 +1054,48 @@ a.btn.btn-qc-tab:focus-visible {
     margin-top: 0.3rem;
 }
 
+/* Password field + always-visible show/hide (replaces Edge focus-only native reveal) */
+.qc-password-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.qc-password-wrap input {
+    padding-right: 2.75rem;
+}
+
+.qc-password-wrap input[type="password"]::-ms-reveal {
+    display: none;
+}
+
+.qc-password-toggle {
+    position: absolute;
+    right: 0.45rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--text-mid);
+    padding: 0.4rem;
+    cursor: pointer;
+    border-radius: 6px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+}
+
+.qc-password-toggle:hover {
+    color: var(--text-dark);
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.qc-password-toggle:focus-visible {
+    outline: 2px solid var(--gold-deeper);
+    outline-offset: 2px;
+}
+
 .btn-submit-full {
     width: 100%;
     padding: 0.75rem;
