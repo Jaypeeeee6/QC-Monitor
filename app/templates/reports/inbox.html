@@ -13,12 +13,12 @@
                 </span>
             {% endif %}
         </h1>
-        <p class="subtitle">Daily reports submitted by Branch Managers</p>
+        <p class="subtitle">Inbox and report details</p>
     </div>
 </div>
 
-<!-- ===== Filter Bar ===== -->
-<form method="GET" action="{{ url_for('reports.inbox') }}" id="filterForm">
+<form method="GET" action="{{ url_for('reports.inbox') }}" id="filterForm" style="margin-top:-0.35rem;">
+    <input type="hidden" name="report_id" value="{{ selected_report_id or '' }}">
     <div class="filter-bar">
         <div class="filter-group filter-search-wrap">
             <i class="bi bi-search filter-search-icon"></i>
@@ -26,168 +26,255 @@
                    placeholder="Search subject, sender, or keywords…"
                    autocomplete="off">
         </div>
-        <div class="filter-group">
-            <select name="branch_id">
-                <option value="">All Branches</option>
-                {% for branch in branches %}
-                <option value="{{ branch.id }}" {{ 'selected' if branch_filter == branch.id|string }}>
-                    {{ branch.name }}
-                </option>
-                {% endfor %}
-            </select>
+        <div class="filter-group filter-group-branches">
+            <div class="branch-filter-dropdown" id="reportsBrandDropdown">
+                <button type="button" class="branch-filter-dropdown-toggle" id="reportsBrandToggle"
+                        aria-expanded="false" aria-controls="reportsBrandPanel"
+                        aria-label="Filter by brand">
+                    <span class="branch-filter-dropdown-summary" id="reportsBrandSummary">All brands</span>
+                    <i class="bi bi-chevron-down branch-filter-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="branch-filter-dropdown-panel" id="reportsBrandPanel" role="group" hidden>
+                    {% for brand in brands %}
+                    <label class="branch-filter-option">
+                        <input type="checkbox" name="brand_id" value="{{ brand.id }}"
+                               {% if brand.id in filter_brands %}checked{% endif %}>
+                        <span>{{ brand.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
-        {% if branch_filter or search %}
+        <div class="filter-group filter-group-branches">
+            <div class="branch-filter-dropdown" id="reportsBranchDropdown">
+                <button type="button" class="branch-filter-dropdown-toggle" id="reportsBranchToggle"
+                        aria-expanded="false" aria-controls="reportsBranchPanel"
+                        aria-label="Filter by branch">
+                    <span class="branch-filter-dropdown-summary" id="reportsBranchSummary">All branches</span>
+                    <i class="bi bi-chevron-down branch-filter-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="branch-filter-dropdown-panel" id="reportsBranchPanel" role="group" hidden>
+                    {% for b in branches %}
+                    {% set brand_key = 'b' ~ b.brand_id if b.brand_id is not none else 'none' %}
+                    {% if loop.changed(b.brand_name) %}
+                    <label class="branch-filter-brand-option">
+                        <input type="checkbox" class="branch-filter-brand-cb" autocomplete="off"
+                               data-brand-key="{{ brand_key }}"
+                               aria-label="Select all branches for {{ (b.brand_name or 'No Brand')|e }}">
+                        <span>{{ b.brand_name or 'No Brand' }}</span>
+                    </label>
+                    {% endif %}
+                    <label class="branch-filter-option" data-brand-key="{{ brand_key }}">
+                        <input type="checkbox" name="branch_id" value="{{ b.id }}"
+                               {% if b.id in filter_branches %}checked{% endif %}>
+                        <span>{{ b.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% if filter_brands or filter_branches or search %}
         <div class="filter-group">
-            <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+            <a href="{{ url_for('reports.inbox', report_id=selected_report_id) }}" class="btn btn-outline-secondary btn-sm">Reset</a>
         </div>
         {% endif %}
     </div>
 </form>
-<script>
-    document.querySelectorAll('#filterForm select').forEach(function(sel) {
-        sel.addEventListener('change', function() { this.closest('form').submit(); });
-    });
-</script>
 
-<!-- Active filter chips -->
-{% if branch_filter or search %}
-<div class="d-flex align-items-center gap-2 mb-3 flex-wrap" style="margin-top:-0.25rem;">
-    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;">Filters:</span>
-    {% if branch_filter %}
-        {% for branch in branches %}{% if branch.id|string == branch_filter %}
-        <span class="filter-chip">
-            <i class="bi bi-building me-1"></i>{{ branch.name }}
-            <a href="{{ url_for('reports.inbox', q=search) }}" class="filter-chip-remove">×</a>
-        </span>
-        {% endif %}{% endfor %}
-    {% endif %}
-    {% if search %}
-    <span class="filter-chip">
-        <i class="bi bi-search me-1"></i>"{{ search }}"
-        <a href="{{ url_for('reports.inbox', branch_id=branch_filter) }}" class="filter-chip-remove">×</a>
+<div id="reportsContentFragment">
+{% if filter_brands or filter_branches %}
+<div class="d-flex align-items-center gap-2 mb-3" style="flex-wrap:wrap;">
+    <span style="font-size:0.78rem;color:#7a869a;font-weight:600;">Active filters:</span>
+    {% for bid in filter_brands %}
+    {% set brand_obj = brands | selectattr('id', 'equalto', bid) | first %}
+    <span style="display:inline-flex;align-items:center;gap:0.35rem;background:#faf0d7;color:#7b6a3e;
+                 font-size:0.78rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;
+                 border:1px solid var(--gold);">
+        <i class="bi bi-tag"></i> {{ brand_obj.name if brand_obj else bid }}
     </span>
-    {% endif %}
-</div>
-{% endif %}
-
-<!-- ===== Report List ===== -->
-{% if reports %}
-<div class="qc-card" style="overflow:hidden;">
-
-    <!-- List header -->
-    <div style="border-bottom:1px solid var(--border-color);padding:0.65rem 1.25rem;
-                display:flex;align-items:center;justify-content:space-between;background:var(--dark-bg);">
-        <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-inbox" style="color:var(--gold);font-size:0.9rem;"></i>
-            <span style="font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.5);
-                         text-transform:uppercase;letter-spacing:0.05em;">
-                {% if branch_filter or search %}Filtered results{% else %}Inbox{% endif %}
-                &mdash; {{ reports|length }} report{{ 's' if reports|length != 1 }}
-            </span>
-        </div>
-        {% if unread_count > 0 and not branch_filter and not search %}
-        <span style="font-size:0.75rem;color:var(--gold);font-weight:600;">
-            {{ unread_count }} unread
-        </span>
-        {% endif %}
-    </div>
-
-    {% for report in reports %}
-    <div class="email-list-item {{ 'unread' if not report.is_read }}"
-         onclick="window.location='{{ url_for('reports.view', report_id=report.id) }}'"
-         style="cursor:pointer;">
-
-        <div class="email-list-meta">
-            <div class="d-flex align-items-center gap-2">
-                <div class="email-avatar">{{ report.sender_name[0] | upper }}</div>
-                <div>
-                    <span class="email-sender-name {{ 'fw-bold' if not report.is_read }}">
-                        {{ report.sender_name }}
-                    </span>
-                    <span class="email-branch-tag">{{ report.branch_name }}</span>
-                    {% if not report.is_read %}
-                        <span class="email-unread-dot"></span>
-                    {% endif %}
-                    {% if report.reply_count > 0 %}
-                        <span style="font-size:0.7rem;color:var(--text-muted);margin-left:0.4rem;">
-                            <i class="bi bi-chat-left-dots me-1"></i>{{ report.reply_count }}
-                        </span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="email-date-label">
-                <span>{{ report.report_date }}</span>
-                <span style="color:var(--text-muted);font-size:0.75rem;">{{ report.created_at[:16] }}</span>
-            </div>
-        </div>
-
-        <div class="email-subject-line {{ 'fw-bold' if not report.is_read }}">
-            {% if not report.is_read %}
-                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;
-                             background:var(--gold);margin-right:6px;vertical-align:middle;"></span>
-            {% endif %}
-            {{ report.subject }}
-        </div>
-        <div class="email-preview">
-            {{ report.body[:130] }}{% if report.body|length > 130 %}…{% endif %}
-        </div>
-    </div>
+    {% endfor %}
+    {% for bid in filter_branches %}
+    {% set branch_obj = branches | selectattr('id', 'equalto', bid) | first %}
+    <span style="display:inline-flex;align-items:center;gap:0.35rem;background:#e8f4fd;color:#1a6fa6;
+                 font-size:0.78rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:20px;
+                 border:1px solid #90cdf4;">
+        <i class="bi bi-building"></i> {{ branch_obj.name if branch_obj else bid }}
+    </span>
     {% endfor %}
 </div>
-
-{% else %}
-<div class="qc-card">
-    <div class="empty-state">
-        <i class="bi bi-envelope-open" style="font-size:3rem;color:var(--text-muted);"></i>
-        {% if branch_filter or search %}
-            <p style="margin-top:1rem;">No reports match your filters.</p>
-            <a href="{{ url_for('reports.inbox') }}" class="btn btn-outline-secondary btn-sm mt-2">
-                <i class="bi bi-x-circle me-1"></i>Clear Filters
-            </a>
-        {% else %}
-            <p style="margin-top:1rem;">No daily reports have been submitted yet.</p>
-        {% endif %}
-    </div>
-</div>
 {% endif %}
+
+<div class="reports-split-layout">
+    <section class="qc-card reports-inbox-pane">
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border-color);background:var(--dark-bg);">
+            <div style="font-size:0.78rem;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.05em;">
+                Inbox &mdash; {{ reports|length }} report{{ 's' if reports|length != 1 }}
+            </div>
+        </div>
+
+        <div class="reports-inbox-scroll">
+            {% if reports %}
+                {% for report in reports %}
+                <a class="email-list-item {{ 'unread' if not report.is_read }} {{ 'active' if selected_report_id == report.id }}"
+                   href="{{ url_for('reports.inbox', report_id=report.id, brand_id=filter_brands, branch_id=filter_branches, q=search) }}">
+                    <div class="email-list-meta">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="email-avatar">{{ report.sender_name[0] | upper }}</div>
+                            <div>
+                                <span class="email-sender-name {{ 'fw-bold' if not report.is_read }}">
+                                    {{ report.sender_name }}
+                                </span>
+                                <span class="email-branch-tag">{{ report.branch_name }}</span>
+                            </div>
+                        </div>
+                        <span class="email-date-label">{{ report.created_at[:16] }}</span>
+                    </div>
+                    <div class="email-subject-line {{ 'fw-bold' if not report.is_read }}">{{ report.subject }}</div>
+                    <div class="email-preview">{{ report.body[:120] }}{% if report.body|length > 120 %}…{% endif %}</div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state" style="padding:2rem 1rem;">
+                    <i class="bi bi-inbox" style="font-size:2rem;color:var(--text-muted);"></i>
+                    <p style="margin-top:0.75rem;">No daily reports found.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="qc-card reports-detail-pane">
+        {% if selected_report %}
+        <div class="reports-detail-header">
+            <div>
+                <div style="font-size:0.92rem;font-weight:600;color:var(--text-dark);margin:0 0 0.2rem 0;">
+                    {{ selected_report.sender_name }} &middot; {{ selected_report.branch_name }}
+                </div>
+                <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.3rem;">
+                    {{ selected_report.report_date }}
+                </div>
+                <div style="font-size:0.86rem;font-weight:600;color:var(--text-dark);">{{ selected_report.subject }}</div>
+            </div>
+        </div>
+
+        <div class="reports-detail-body">
+            {% for line in selected_report.body.splitlines() %}
+                {% if line.strip() %}<p>{{ line }}</p>{% else %}<br>{% endif %}
+            {% endfor %}
+        </div>
+
+        {% if attachments %}
+        <div class="reports-detail-section">
+            <h6><i class="bi bi-images me-1"></i>Attachments</h6>
+            <div class="photo-gallery-grid">
+                {% for att in attachments %}
+                <a href="{{ url_for('static', filename='uploads/reports/' + att.filename) }}"
+                   target="_blank" class="photo-gallery-item" title="{{ att.original_name }}">
+                    <img src="{{ url_for('static', filename='uploads/reports/' + att.filename) }}"
+                         alt="{{ att.original_name }}" loading="lazy">
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if replies %}
+        <div class="reports-detail-section">
+            <h6><i class="bi bi-chat-left-dots me-1"></i>Replies</h6>
+            {% for item in replies %}
+            <div class="reply-card">
+                <div class="reply-header">
+                    <strong>{{ item.reply.author_name }}</strong>
+                    <span style="font-size:0.75rem;color:var(--text-muted);">{{ item.reply.created_at[:16] }}</span>
+                </div>
+                <div class="reply-body">
+                    {% for line in item.reply.body.splitlines() %}
+                        {% if line.strip() %}<p>{{ line }}</p>{% else %}<br>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if current_user.role in ('qc_admin', 'it_admin') %}
+        <div class="reports-detail-section">
+            <h6><i class="bi bi-reply me-1"></i>Reply</h6>
+            <form method="POST" action="{{ url_for('reports.reply', report_id=selected_report.id) }}" enctype="multipart/form-data" id="replyForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <textarea name="body" class="email-body-input" rows="5" required
+                          placeholder="Write your reply..."></textarea>
+                <div style="margin-top:0.7rem;">
+                    <div id="replyDropZone" class="photo-drop-zone">
+                        <i class="bi bi-cloud-upload" style="font-size:1.4rem;color:var(--text-muted);"></i>
+                        <p style="margin:0.35rem 0 0;font-size:0.78rem;color:var(--text-muted);">
+                            Drag & drop photos or
+                            <label for="replyPhotoInput" style="color:var(--gold-deeper);cursor:pointer;font-weight:600;text-decoration:underline;">choose files</label>
+                        </p>
+                        <input type="file" id="replyPhotoInput" name="photos" multiple
+                               accept=".jpg,.jpeg,.png,.gif,.webp" style="display:none;">
+                    </div>
+                    <div id="replyPhotoPreview" class="photo-preview-grid" style="display:none;margin-top:0.6rem;"></div>
+                </div>
+                <div class="d-flex justify-content-end mt-2">
+                    <button type="submit" class="btn-qc-primary btn-sm">Send Reply</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state reports-empty-detail">
+            <i class="bi bi-envelope-open" style="font-size:3rem;color:var(--text-muted);"></i>
+            <h5 style="margin-top:1rem;">No report selected</h5>
+            <p style="margin:0;color:var(--text-muted);">Select a report from the inbox to view its details.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <style>
-/* ---- Filter chips ---- */
-.filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--gold-pale);
-    color: var(--gold-deeper);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 600;
+.reports-split-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 36%) 1fr;
+    gap: 1rem;
+    height: clamp(460px, 72vh, 860px);
 }
-.filter-chip-remove {
-    color: var(--gold-deeper);
-    text-decoration: none;
-    font-weight: 700;
-    margin-left: 2px;
-    opacity: 0.7;
+.reports-inbox-pane,
+.reports-detail-pane {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
-.filter-chip-remove:hover { opacity: 1; }
-
-/* ---- Email list ---- */
+.reports-inbox-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+.reports-detail-pane {
+    overflow-y: auto;
+}
 .email-list-item {
-    padding: 0.85rem 1.25rem;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border-color);
     transition: background 0.15s;
 }
 .email-list-item:last-child { border-bottom: none; }
 .email-list-item:hover { background: var(--gold-light); }
+.email-list-item.active {
+    background: rgba(217, 189, 125, 0.16);
+    border-left: 3px solid var(--gold);
+}
 .email-list-item.unread { border-left: 3px solid var(--gold); }
 .email-list-meta {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 0.25rem;
 }
 .email-avatar {
@@ -212,20 +299,8 @@
     font-weight: 600;
     margin-left: 0.4rem;
 }
-.email-unread-dot {
-    display: inline-block;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--gold);
-    margin-left: 0.3rem;
-    vertical-align: middle;
-}
 .email-date-label {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: var(--text-mid);
     font-weight: 500;
     white-space: nowrap;
@@ -245,5 +320,589 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.reports-detail-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.reports-detail-body {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-dark);
+    line-height: 1.75;
+}
+.reports-detail-body p {
+    margin-bottom: 0.4rem;
+}
+.reports-detail-section {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.reports-detail-section h6 {
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.reports-empty-detail {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.photo-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.5rem;
+}
+.photo-gallery-item {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    display: block;
+    aspect-ratio: 1;
+}
+.photo-gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.reply-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+.reply-header {
+    padding: 0.55rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(217, 189, 125, 0.06);
+}
+.reply-body {
+    padding: 0.75rem;
+    font-size: 0.88rem;
+    color: var(--text-dark);
+    line-height: 1.65;
+}
+.reply-body p { margin-bottom: 0.4rem; }
+.email-body-input {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    resize: vertical;
+    min-height: 110px;
+}
+.photo-drop-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: pointer;
+}
+.photo-drop-zone.drag-over {
+    border-color: var(--gold);
+    background: var(--gold-light);
+}
+.photo-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.5rem;
+}
+.photo-preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid var(--border-color);
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.photo-remove-btn:hover {
+    background: #ef4444;
+}
+@media (max-width: 992px) {
+    .reports-split-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+    .reports-inbox-scroll {
+        max-height: 45vh;
+    }
+    .reports-detail-pane {
+        max-height: 60vh;
+    }
+}
 </style>
+
+<script>
+(function() {
+    var form = document.getElementById('filterForm');
+    if (!form) return;
+
+    function closeDropdown(root) {
+        if (!root) return;
+        root.classList.remove('is-open');
+        var panel = root.querySelector('.branch-filter-dropdown-panel');
+        var toggle = root.querySelector('.branch-filter-dropdown-toggle');
+        if (panel) panel.hidden = true;
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function closeAllInForm(exceptRoot) {
+        form.querySelectorAll('.branch-filter-dropdown.is-open').forEach(function(root) {
+            if (root !== exceptRoot) closeDropdown(root);
+        });
+    }
+
+    var filterFetchTimer;
+    var searchTimer;
+
+    function buildFilterUrl() {
+        var action = form.getAttribute('action') || form.action;
+        var abs = new URL(action, window.location.href);
+        abs.search = new URLSearchParams(new FormData(form)).toString();
+        return abs.toString();
+    }
+
+    function runFilterFetch() {
+        var frag = document.getElementById('reportsContentFragment');
+        var url = buildFilterUrl();
+        if (!frag) {
+            window.location.href = url;
+            return;
+        }
+        fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            })
+            .then(function(html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var next = doc.getElementById('reportsContentFragment');
+                if (!next) throw new Error('Fragment not found');
+                frag.innerHTML = next.innerHTML;
+                bindInboxItemClicks();
+                bindDetailInteractions();
+                try {
+                    var u = new URL(url);
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState(null, '', u.pathname + u.search);
+                    }
+                } catch (err) { /* ignore */ }
+            })
+            .catch(function() {
+                window.location.href = url;
+            });
+    }
+
+    function scheduleFilterFetch(delayMs) {
+        clearTimeout(filterFetchTimer);
+        filterFetchTimer = setTimeout(function() {
+            filterFetchTimer = null;
+            runFilterFetch();
+        }, delayMs || 350);
+    }
+
+    function flushPendingFilterFetch() {
+        if (!filterFetchTimer) return;
+        clearTimeout(filterFetchTimer);
+        filterFetchTimer = null;
+        runFilterFetch();
+    }
+
+    function wireBrandDropdown() {
+        var root = document.getElementById('reportsBrandDropdown');
+        var toggle = document.getElementById('reportsBrandToggle');
+        var panel = document.getElementById('reportsBrandPanel');
+        var summary = document.getElementById('reportsBrandSummary');
+        if (!root || !toggle || !panel || !summary) return;
+
+        function updateSummary() {
+            var checked = panel.querySelectorAll('input[name="brand_id"]:checked');
+            if (checked.length === 0) {
+                summary.textContent = 'All brands';
+                return;
+            }
+            if (checked.length === 1) {
+                var lbl = checked[0].closest('label');
+                summary.textContent = lbl ? lbl.querySelector('span').textContent.trim() : '1 brand';
+                return;
+            }
+            summary.textContent = checked.length + ' brands';
+        }
+
+        function setOpen(open) {
+            root.classList.toggle('is-open', open);
+            panel.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function isOpen() {
+            return root.classList.contains('is-open');
+        }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var willOpen = !isOpen();
+            if (willOpen) closeAllInForm(root);
+            setOpen(willOpen);
+        });
+        panel.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        panel.addEventListener('change', function() {
+            updateSummary();
+            scheduleFilterFetch(350);
+        });
+        updateSummary();
+    }
+
+    function wireBranchDropdown() {
+        var root = document.getElementById('reportsBranchDropdown');
+        var toggle = document.getElementById('reportsBranchToggle');
+        var panel = document.getElementById('reportsBranchPanel');
+        var summary = document.getElementById('reportsBranchSummary');
+        if (!root || !toggle || !panel || !summary) return;
+
+        function updateSummary() {
+            var checked = panel.querySelectorAll('input[name="branch_id"]:checked');
+            if (checked.length === 0) {
+                summary.textContent = 'All branches';
+                return;
+            }
+            if (checked.length === 1) {
+                var lbl = checked[0].closest('label');
+                summary.textContent = lbl ? lbl.querySelector('span').textContent.trim() : '1 branch';
+                return;
+            }
+            summary.textContent = checked.length + ' branches';
+        }
+
+        function setOpen(open) {
+            root.classList.toggle('is-open', open);
+            panel.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function isOpen() {
+            return root.classList.contains('is-open');
+        }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var willOpen = !isOpen();
+            if (willOpen) closeAllInForm(root);
+            setOpen(willOpen);
+        });
+        panel.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        function branchBoxesForBrand(key) {
+            return panel.querySelectorAll(
+                '.branch-filter-option[data-brand-key="' + key + '"] input[name="branch_id"]'
+            );
+        }
+
+        function brandMasterCheckbox(key) {
+            return panel.querySelector('.branch-filter-brand-cb[data-brand-key="' + key + '"]');
+        }
+
+        function syncBrandCheckbox(key) {
+            var brandCb = brandMasterCheckbox(key);
+            if (!brandCb) return;
+            var boxes = branchBoxesForBrand(key);
+            var n = boxes.length;
+            if (!n) return;
+            var c = 0;
+            for (var i = 0; i < boxes.length; i++) {
+                if (boxes[i].checked) c++;
+            }
+            brandCb.indeterminate = c > 0 && c < n;
+            brandCb.checked = c === n;
+        }
+
+        function syncAllBrandCheckboxes() {
+            panel.querySelectorAll('.branch-filter-brand-cb').forEach(function(cb) {
+                syncBrandCheckbox(cb.getAttribute('data-brand-key'));
+            });
+        }
+
+        panel.addEventListener('change', function(e) {
+            var t = e.target;
+            if (t.classList && t.classList.contains('branch-filter-brand-cb')) {
+                var key = t.getAttribute('data-brand-key');
+                var want = t.checked;
+                branchBoxesForBrand(key).forEach(function(cb) {
+                    cb.checked = want;
+                });
+                t.indeterminate = false;
+                updateSummary();
+                scheduleFilterFetch(350);
+                return;
+            }
+            if (t.name === 'branch_id') {
+                var row = t.closest('.branch-filter-option');
+                if (row) syncBrandCheckbox(row.getAttribute('data-brand-key'));
+                updateSummary();
+                scheduleFilterFetch(350);
+            }
+        });
+
+        syncAllBrandCheckboxes();
+        updateSummary();
+    }
+
+    wireBrandDropdown();
+    wireBranchDropdown();
+
+    var searchInput = form.querySelector('input[name="q"]');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() {
+                clearTimeout(filterFetchTimer);
+                filterFetchTimer = null;
+                runFilterFetch();
+            }, 450);
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        clearTimeout(searchTimer);
+        clearTimeout(filterFetchTimer);
+        filterFetchTimer = null;
+        runFilterFetch();
+    });
+
+    document.addEventListener('click', function(e) {
+        var skipFlush = e.target && e.target.closest &&
+            e.target.closest('a[href], button, input[type="checkbox"]');
+        form.querySelectorAll('.branch-filter-dropdown.is-open').forEach(closeDropdown);
+        if (!skipFlush) flushPendingFilterFetch();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        var openRoot = form.querySelector('.branch-filter-dropdown.is-open');
+        if (!openRoot) return;
+        var toggle = openRoot.querySelector('.branch-filter-dropdown-toggle');
+        form.querySelectorAll('.branch-filter-dropdown.is-open').forEach(closeDropdown);
+        flushPendingFilterFetch();
+        if (toggle) toggle.focus();
+    });
+})();
+
+function initPhotoUpload(dropZoneId, inputId, previewId) {
+    const dropZone = document.getElementById(dropZoneId);
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    if (!dropZone || !input) return;
+
+    const MAX = 5;
+    let files = [];
+
+    dropZone.addEventListener('click', () => input.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        add(e.dataTransfer.files);
+    });
+    input.addEventListener('change', () => add(input.files));
+
+    function add(list) {
+        for (const f of list) {
+            if (files.length >= MAX) {
+                alert('Max ' + MAX + ' photos.');
+                break;
+            }
+            if (!f.type.startsWith('image/')) continue;
+            files.push(f);
+        }
+        render();
+        sync();
+    }
+
+    function render() {
+        if (!preview) return;
+        preview.innerHTML = '';
+        preview.style.display = files.length ? 'grid' : 'none';
+        files.forEach((f, i) => {
+            const item = document.createElement('div');
+            item.className = 'photo-preview-item';
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(f);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'photo-remove-btn';
+            btn.innerHTML = '<i class="bi bi-x"></i>';
+            btn.onclick = () => {
+                files.splice(i, 1);
+                render();
+                sync();
+            };
+            item.append(img, btn);
+            preview.appendChild(item);
+        });
+    }
+
+    function sync() {
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    }
+}
+
+function bindDetailInteractions() {
+    initPhotoUpload('replyDropZone', 'replyPhotoInput', 'replyPhotoPreview');
+
+    const replyForm = document.getElementById('replyForm');
+    if (replyForm && !replyForm.dataset.ajaxBound) {
+        replyForm.dataset.ajaxBound = '1';
+        replyForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const submitBtn = replyForm.querySelector('button[type="submit"]');
+            const detailPane = document.querySelector('.reports-detail-pane');
+            const previousScrollTop = detailPane ? detailPane.scrollTop : 0;
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Sending...';
+            }
+
+            try {
+                const response = await fetch(replyForm.action, {
+                    method: 'POST',
+                    body: new FormData(replyForm),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!response.ok) throw new Error('Reply request failed');
+
+                const html = await response.text();
+                const responseUrl = response.url || window.location.href;
+                replaceDetailPane(html, responseUrl, previousScrollTop);
+                window.history.replaceState({ reportUrl: responseUrl }, '', responseUrl);
+            } catch (err) {
+                replyForm.submit();
+            } finally {
+                if (submitBtn && document.body.contains(submitBtn)) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Send Reply';
+                }
+            }
+        });
+    }
+}
+
+function getReportIdFromUrl(rawUrl) {
+    try {
+        const parsed = new URL(rawUrl, window.location.origin);
+        return parsed.searchParams.get('report_id');
+    } catch (err) {
+        return null;
+    }
+}
+
+function updateActiveReportLink(targetHref) {
+    const targetReportId = getReportIdFromUrl(targetHref);
+    document.querySelectorAll('.reports-inbox-scroll .email-list-item').forEach(function (link) {
+        const linkReportId = getReportIdFromUrl(link.href);
+        link.classList.toggle('active', !!targetReportId && linkReportId === targetReportId);
+    });
+}
+
+function syncSelectedReportField(targetHref) {
+    const selectedIdInput = document.querySelector('#filterForm input[name="report_id"]');
+    if (!selectedIdInput) return;
+    selectedIdInput.value = getReportIdFromUrl(targetHref) || '';
+}
+
+function replaceDetailPane(html, sourceUrl, scrollTopToRestore) {
+    const detailPane = document.querySelector('.reports-detail-pane');
+    if (!detailPane) throw new Error('Detail pane missing');
+
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const nextDetailPane = parsed.querySelector('.reports-detail-pane');
+    if (!nextDetailPane) throw new Error('Detail pane not found');
+
+    detailPane.innerHTML = nextDetailPane.innerHTML;
+    if (typeof scrollTopToRestore === 'number') {
+        detailPane.scrollTop = scrollTopToRestore;
+    }
+    updateActiveReportLink(sourceUrl);
+    syncSelectedReportField(sourceUrl);
+    bindDetailInteractions();
+}
+
+async function loadReportDetail(url, pushHistory) {
+    try {
+        const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!response.ok) throw new Error('Failed to load report detail');
+
+        const html = await response.text();
+        replaceDetailPane(html, url);
+
+        if (pushHistory) {
+            window.history.pushState({ reportUrl: url }, '', url);
+        }
+    } catch (err) {
+        window.location.href = url;
+    }
+}
+
+function bindInboxItemClicks() {
+    document.querySelectorAll('.reports-inbox-scroll .email-list-item').forEach(function (link) {
+        if (link.dataset.ajaxBound === '1') return;
+        link.dataset.ajaxBound = '1';
+        link.addEventListener('click', function (event) {
+            if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                return;
+            }
+            event.preventDefault();
+            loadReportDetail(link.href, true);
+        });
+    });
+}
+
+window.addEventListener('popstate', function () {
+    loadReportDetail(window.location.href, false);
+});
+
+bindDetailInteractions();
+bindInboxItemClicks();
+</script>
 {% endblock %}

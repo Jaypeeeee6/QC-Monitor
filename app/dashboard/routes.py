@@ -135,6 +135,10 @@ def reports():
     today = local_today()
 
     filter_day = request.args.get('date', today)
+    brands = db.execute(
+        'SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name'
+    ).fetchall()
+    valid_brand_ids = {b['id'] for b in brands}
 
     branches = db.execute(
         '''SELECT b.id, b.name, b.brand_id, br.name as brand_name
@@ -142,6 +146,15 @@ def reports():
            LEFT JOIN brands br ON br.id = b.brand_id
            ORDER BY br.name NULLS LAST, b.name'''
     ).fetchall()
+
+    filter_brands = []
+    for raw in request.args.getlist('brand_id'):
+        try:
+            bid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if bid in valid_brand_ids and bid not in filter_brands:
+            filter_brands.append(bid)
 
     valid_branch_ids = {b['id'] for b in branches}
     filter_branches = []
@@ -175,6 +188,11 @@ def reports():
     '''
     params = [filter_day]
 
+    if filter_brands:
+        placeholders = ','.join('?' * len(filter_brands))
+        query += f' AND b.brand_id IN ({placeholders})'
+        params.extend(filter_brands)
+
     if filter_branches:
         placeholders = ','.join('?' * len(filter_branches))
         query += f' AND cs.branch_id IN ({placeholders})'
@@ -198,6 +216,10 @@ def reports():
         WHERE cs.submission_date = ?
     '''
     daily_branch_params = [filter_day]
+    if filter_brands:
+        ph = ','.join('?' * len(filter_brands))
+        daily_branch_query += f' AND b.brand_id IN ({ph})'
+        daily_branch_params.extend(filter_brands)
     if filter_branches:
         ph = ','.join('?' * len(filter_branches))
         daily_branch_query += f' AND cs.branch_id IN ({ph})'
@@ -226,10 +248,17 @@ def reports():
         LEFT JOIN scores s ON s.submission_id = cs.id
     '''
     all_time_branch_params = []
+    where_clauses = []
+    if filter_brands:
+        ph = ','.join('?' * len(filter_brands))
+        where_clauses.append(f'b.brand_id IN ({ph})')
+        all_time_branch_params.extend(filter_brands)
     if filter_branches:
         ph = ','.join('?' * len(filter_branches))
-        all_time_branch_query += f' WHERE b.id IN ({ph})'
+        where_clauses.append(f'b.id IN ({ph})')
         all_time_branch_params.extend(filter_branches)
+    if where_clauses:
+        all_time_branch_query += ' WHERE ' + ' AND '.join(where_clauses)
     all_time_branch_query += '''
         GROUP BY b.id, b.name
         HAVING COUNT(s.id) > 0
@@ -248,7 +277,9 @@ def reports():
     return render_template(
         'dashboard/reports.html',
         submissions=submissions,
+        brands=brands,
         branches=branches,
+        filter_brands=filter_brands,
         filter_branches=filter_branches,
         filter_day=filter_day,
         avg_score=avg_score,

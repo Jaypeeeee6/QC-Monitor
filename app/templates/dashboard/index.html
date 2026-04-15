@@ -11,10 +11,8 @@
           style="display:flex;align-items:center;gap:0.5rem;">
         <label style="font-size:0.8rem;color:#7a869a;font-weight:600;">Date:</label>
         <input type="date" name="date" value="{{ filter_date }}"
+               onchange="this.form.submit()"
                style="border:1.5px solid #e2e8f0;border-radius:8px;padding:0.4rem 0.75rem;font-size:0.875rem;outline:none;">
-        <button type="submit" class="btn-qc-primary">
-            <i class="bi bi-search"></i>
-        </button>
         {% if filter_date != today %}
         <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-sm">Today</a>
         {% endif %}

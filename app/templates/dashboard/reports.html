@@ -21,6 +21,26 @@
             <input type="date" name="date" value="{{ filter_day }}">
         </div>
         <div class="filter-group filter-group-branches">
+            <label id="brandFilterLabel">Brands</label>
+            <div class="branch-filter-dropdown" id="brandFilterDropdown">
+                <button type="button" class="branch-filter-dropdown-toggle" id="brandFilterToggle"
+                        aria-expanded="false" aria-controls="brandFilterPanel"
+                        aria-labelledby="brandFilterLabel">
+                    <span class="branch-filter-dropdown-summary" id="brandFilterSummary">All brands</span>
+                    <i class="bi bi-chevron-down branch-filter-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="branch-filter-dropdown-panel" id="brandFilterPanel" role="group" hidden>
+                    {% for brand in brands %}
+                    <label class="branch-filter-option">
+                        <input type="checkbox" name="brand_id" value="{{ brand.id }}"
+                               {% if brand.id in filter_brands %}checked{% endif %}>
+                        <span>{{ brand.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="filter-group filter-group-branches">
             <label id="branchFilterLabel">Branches</label>
             <div class="branch-filter-dropdown" id="branchFilterDropdown">
                 <button type="button" class="branch-filter-dropdown-toggle" id="branchFilterToggle"
@@ -51,9 +71,6 @@
         </div>
         <div class="filter-group">
             <a href="{{ url_for('dashboard.reports') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
-        </div>
-        <div class="filter-group">
-            <button type="submit" class="btn btn-sm btn-qc-primary">Apply Filters</button>
         </div>
     </div>
 </form>
@@ -129,94 +146,187 @@
 {% block scripts %}
 <script>
 (function() {
-    var root = document.getElementById('branchFilterDropdown');
-    if (!root) return;
-    var toggle = document.getElementById('branchFilterToggle');
-    var panel = document.getElementById('branchFilterPanel');
-    var summary = document.getElementById('branchFilterSummary');
-    function updateSummary() {
-        var checked = panel.querySelectorAll('input[name="branch_id"]:checked');
-        if (checked.length === 0) {
-            summary.textContent = 'All branches';
-            return;
-        }
-        if (checked.length === 1) {
-            var lbl = checked[0].closest('label');
-            summary.textContent = lbl ? lbl.querySelector('span').textContent.trim() : '1 branch';
-            return;
-        }
-        summary.textContent = checked.length + ' branches';
+    var form = document.getElementById('reportsFilterForm');
+    if (!form) return;
+
+    function closeDropdown(root) {
+        if (!root) return;
+        root.classList.remove('is-open');
+        var panel = root.querySelector('.branch-filter-dropdown-panel');
+        var toggle = root.querySelector('.branch-filter-dropdown-toggle');
+        if (panel) panel.hidden = true;
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
     }
-    function setOpen(open) {
-        root.classList.toggle('is-open', open);
-        panel.hidden = !open;
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-    function isOpen() {
-        return root.classList.contains('is-open');
-    }
-    toggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        setOpen(!isOpen());
-    });
-    panel.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-    function branchBoxesForBrand(key) {
-        return panel.querySelectorAll(
-            '.branch-filter-option[data-brand-key="' + key + '"] input[name="branch_id"]'
-        );
-    }
-    function brandMasterCheckbox(key) {
-        return panel.querySelector('.branch-filter-brand-cb[data-brand-key="' + key + '"]');
-    }
-    function syncBrandCheckbox(key) {
-        var brandCb = brandMasterCheckbox(key);
-        if (!brandCb) return;
-        var boxes = branchBoxesForBrand(key);
-        var n = boxes.length;
-        if (!n) return;
-        var c = 0;
-        for (var i = 0; i < boxes.length; i++) {
-            if (boxes[i].checked) c++;
-        }
-        brandCb.indeterminate = c > 0 && c < n;
-        brandCb.checked = c === n;
-    }
-    function syncAllBrandCheckboxes() {
-        panel.querySelectorAll('.branch-filter-brand-cb').forEach(function(cb) {
-            syncBrandCheckbox(cb.getAttribute('data-brand-key'));
+
+    function closeAllInForm(exceptRoot) {
+        form.querySelectorAll('.branch-filter-dropdown.is-open').forEach(function(root) {
+            if (root !== exceptRoot) closeDropdown(root);
         });
     }
-    panel.addEventListener('change', function(e) {
-        var t = e.target;
-        if (t.classList && t.classList.contains('branch-filter-brand-cb')) {
-            var key = t.getAttribute('data-brand-key');
-            var want = t.checked;
-            branchBoxesForBrand(key).forEach(function(cb) {
-                cb.checked = want;
-            });
-            t.indeterminate = false;
-            updateSummary();
-            return;
+
+    function wireBrandDropdown() {
+        var root = document.getElementById('brandFilterDropdown');
+        var toggle = document.getElementById('brandFilterToggle');
+        var panel = document.getElementById('brandFilterPanel');
+        var summary = document.getElementById('brandFilterSummary');
+        if (!root || !toggle || !panel || !summary) return;
+
+        function updateSummary() {
+            var checked = panel.querySelectorAll('input[name="brand_id"]:checked');
+            if (checked.length === 0) {
+                summary.textContent = 'All brands';
+                return;
+            }
+            if (checked.length === 1) {
+                var lbl = checked[0].closest('label');
+                summary.textContent = lbl ? lbl.querySelector('span').textContent.trim() : '1 brand';
+                return;
+            }
+            summary.textContent = checked.length + ' brands';
         }
-        if (t.name === 'branch_id') {
-            var row = t.closest('.branch-filter-option');
-            if (row) syncBrandCheckbox(row.getAttribute('data-brand-key'));
+
+        function setOpen(open) {
+            root.classList.toggle('is-open', open);
+            panel.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function isOpen() {
+            return root.classList.contains('is-open');
+        }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var willOpen = !isOpen();
+            if (willOpen) closeAllInForm(root);
+            setOpen(willOpen);
+        });
+        panel.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        panel.addEventListener('change', function() {
             updateSummary();
+        });
+        updateSummary();
+    }
+
+    function wireBranchDropdown() {
+        var root = document.getElementById('branchFilterDropdown');
+        var toggle = document.getElementById('branchFilterToggle');
+        var panel = document.getElementById('branchFilterPanel');
+        var summary = document.getElementById('branchFilterSummary');
+        if (!root || !toggle || !panel || !summary) return;
+
+        function updateSummary() {
+            var checked = panel.querySelectorAll('input[name="branch_id"]:checked');
+            if (checked.length === 0) {
+                summary.textContent = 'All branches';
+                return;
+            }
+            if (checked.length === 1) {
+                var lbl = checked[0].closest('label');
+                summary.textContent = lbl ? lbl.querySelector('span').textContent.trim() : '1 branch';
+                return;
+            }
+            summary.textContent = checked.length + ' branches';
+        }
+
+        function setOpen(open) {
+            root.classList.toggle('is-open', open);
+            panel.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function isOpen() {
+            return root.classList.contains('is-open');
+        }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var willOpen = !isOpen();
+            if (willOpen) closeAllInForm(root);
+            setOpen(willOpen);
+        });
+        panel.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        function branchBoxesForBrand(key) {
+            return panel.querySelectorAll(
+                '.branch-filter-option[data-brand-key="' + key + '"] input[name="branch_id"]'
+            );
+        }
+
+        function brandMasterCheckbox(key) {
+            return panel.querySelector('.branch-filter-brand-cb[data-brand-key="' + key + '"]');
+        }
+
+        function syncBrandCheckbox(key) {
+            var brandCb = brandMasterCheckbox(key);
+            if (!brandCb) return;
+            var boxes = branchBoxesForBrand(key);
+            var n = boxes.length;
+            if (!n) return;
+            var c = 0;
+            for (var i = 0; i < boxes.length; i++) {
+                if (boxes[i].checked) c++;
+            }
+            brandCb.indeterminate = c > 0 && c < n;
+            brandCb.checked = c === n;
+        }
+
+        function syncAllBrandCheckboxes() {
+            panel.querySelectorAll('.branch-filter-brand-cb').forEach(function(cb) {
+                syncBrandCheckbox(cb.getAttribute('data-brand-key'));
+            });
+        }
+
+        panel.addEventListener('change', function(e) {
+            var t = e.target;
+            if (t.classList && t.classList.contains('branch-filter-brand-cb')) {
+                var key = t.getAttribute('data-brand-key');
+                var want = t.checked;
+                branchBoxesForBrand(key).forEach(function(cb) {
+                    cb.checked = want;
+                });
+                t.indeterminate = false;
+                updateSummary();
+                return;
+            }
+            if (t.name === 'branch_id') {
+                var row = t.closest('.branch-filter-option');
+                if (row) syncBrandCheckbox(row.getAttribute('data-brand-key'));
+                updateSummary();
+            }
+        });
+
+        syncAllBrandCheckboxes();
+        updateSummary();
+    }
+
+    wireBrandDropdown();
+    wireBranchDropdown();
+
+    form.addEventListener('change', function(e) {
+        var t = e.target;
+        if (!t) return;
+        if (t.name === 'date' || t.name === 'brand_id' || t.name === 'branch_id' ||
+            (t.classList && t.classList.contains('branch-filter-brand-cb'))) {
+            form.submit();
         }
     });
+
     document.addEventListener('click', function() {
-        if (isOpen()) setOpen(false);
+        form.querySelectorAll('.branch-filter-dropdown.is-open').forEach(closeDropdown);
     });
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && isOpen()) {
-            setOpen(false);
-            toggle.focus();
-        }
+        if (e.key !== 'Escape') return;
+        var openRoot = form.querySelector('.branch-filter-dropdown.is-open');
+        if (!openRoot) return;
+        var toggle = openRoot.querySelector('.branch-filter-dropdown-toggle');
+        form.querySelectorAll('.branch-filter-dropdown.is-open').forEach(closeDropdown);
+        if (toggle) toggle.focus();
     });
-    syncAllBrandCheckboxes();
-    updateSummary();
 })();
 </script>
 {% if daily_branch_score_data or all_time_branch_score_data %}

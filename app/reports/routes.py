@@ -69,10 +69,39 @@ def inbox():
                                today=today, today_report=today_report)
 
     elif current_user.role in ('qc_admin', 'it_admin', 'management'):
-        branches = db.execute('SELECT id, name FROM branches ORDER BY name').fetchall()
+        brands = db.execute(
+            'SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name'
+        ).fetchall()
+        valid_brand_ids = {b['id'] for b in brands}
 
-        branch_filter = request.args.get('branch_id', '', type=str).strip()
+        branches = db.execute(
+            '''SELECT b.id, b.name, b.brand_id, br.name as brand_name
+               FROM branches b
+               LEFT JOIN brands br ON br.id = b.brand_id
+               ORDER BY br.name, b.name'''
+        ).fetchall()
+        valid_branch_ids = {b['id'] for b in branches}
+
+        filter_brands = []
+        for raw in request.args.getlist('brand_id'):
+            try:
+                bid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if bid in valid_brand_ids and bid not in filter_brands:
+                filter_brands.append(bid)
+
+        filter_branches = []
+        for raw in request.args.getlist('branch_id'):
+            try:
+                bid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if bid in valid_branch_ids and bid not in filter_branches:
+                filter_branches.append(bid)
+
         search = request.args.get('q', '', type=str).strip()
+        selected_report_id = request.args.get('report_id', type=int)
 
         query = '''SELECT dr.*, b.name as branch_name, u.full_name as sender_name,
                           (SELECT COUNT(*) FROM report_replies rr WHERE rr.report_id = dr.id) as reply_count
@@ -82,9 +111,15 @@ def inbox():
                    WHERE 1=1'''
         params = []
 
-        if branch_filter:
-            query += ' AND dr.branch_id = ?'
-            params.append(int(branch_filter))
+        if filter_brands:
+            placeholders = ','.join('?' * len(filter_brands))
+            query += f' AND b.brand_id IN ({placeholders})'
+            params.extend(filter_brands)
+
+        if filter_branches:
+            placeholders = ','.join('?' * len(filter_branches))
+            query += f' AND dr.branch_id IN ({placeholders})'
+            params.extend(filter_branches)
 
         if search:
             query += ' AND (dr.subject LIKE ? OR dr.body LIKE ? OR u.full_name LIKE ?)'
@@ -94,6 +129,61 @@ def inbox():
         query += ' ORDER BY dr.created_at DESC'
         reports = db.execute(query, params).fetchall()
 
+        selected_report = None
+        attachments = []
+        replies = []
+        qc_admins = []
+
+        if selected_report_id:
+            selected_report = db.execute(
+                '''SELECT dr.*, b.name as branch_name,
+                          u.full_name as sender_name, u.email as sender_email, u.role as sender_role
+                   FROM daily_reports dr
+                   JOIN branches b ON b.id = dr.branch_id
+                   JOIN users u ON u.id = dr.submitted_by
+                   WHERE dr.id = ?''',
+                (selected_report_id,)
+            ).fetchone()
+
+            if selected_report:
+                if not selected_report['is_read']:
+                    db.execute(
+                        'UPDATE daily_reports SET is_read = 1 WHERE id = ?',
+                        (selected_report_id,)
+                    )
+                    db.commit()
+                    selected_report = dict(selected_report)
+                    selected_report['is_read'] = 1
+
+                qc_admins = db.execute(
+                    '''SELECT full_name, email FROM users
+                       WHERE role = 'qc_admin' AND is_active = 1
+                       ORDER BY full_name'''
+                ).fetchall()
+
+                attachments = db.execute(
+                    '''SELECT ra.* FROM report_attachments ra
+                       WHERE ra.report_id = ? AND ra.reply_id IS NULL
+                       ORDER BY ra.created_at''',
+                    (selected_report_id,)
+                ).fetchall()
+
+                replies_raw = db.execute(
+                    '''SELECT rr.*, u.full_name as author_name, u.role as author_role
+                       FROM report_replies rr
+                       JOIN users u ON u.id = rr.user_id
+                       WHERE rr.report_id = ?
+                       ORDER BY rr.created_at''',
+                    (selected_report_id,)
+                ).fetchall()
+
+                for reply in replies_raw:
+                    reply_attachments = db.execute(
+                        'SELECT * FROM report_attachments WHERE reply_id = ? ORDER BY created_at',
+                        (reply['id'],)
+                    ).fetchall()
+                    replies.append({'reply': reply, 'attachments': reply_attachments})
+
         unread_count = db.execute(
             'SELECT COUNT(*) FROM daily_reports WHERE is_read = 0'
         ).fetchone()[0]
@@ -101,9 +191,16 @@ def inbox():
         return render_template('reports/inbox.html',
                                reports=reports,
                                unread_count=unread_count,
+                               brands=brands,
                                branches=branches,
-                               branch_filter=branch_filter,
-                               search=search)
+                               filter_brands=filter_brands,
+                               filter_branches=filter_branches,
+                               search=search,
+                               selected_report=selected_report,
+                               selected_report_id=selected_report_id,
+                               attachments=attachments,
+                               replies=replies,
+                               qc_admins=qc_admins)
 
     abort(403)
 
@@ -205,10 +302,8 @@ def view(report_id):
     if current_user.role == 'branch_manager' and report['submitted_by'] != current_user.id:
         abort(403)
 
-    # Mark as read when QC/IT/Management opens it
-    if current_user.role in ('qc_admin', 'it_admin', 'management') and not report['is_read']:
-        db.execute('UPDATE daily_reports SET is_read = 1 WHERE id = ?', (report_id,))
-        db.commit()
+    if current_user.role in ('qc_admin', 'it_admin', 'management'):
+        return redirect(url_for('reports.inbox', report_id=report_id))
 
     qc_admins = db.execute(
         '''SELECT full_name, email FROM users
