@@ -597,18 +597,43 @@ def history():
 def all_submissions():
     db = get_db()
 
-    filter_brand  = request.args.get('brand_id', '', type=str)
-    filter_branch = request.args.get('branch_id', '', type=str)
-    filter_date   = request.args.get('date', local_today())
+    filter_date = request.args.get('date', local_today())
     filter_search = request.args.get('search', '').strip()
 
     brands = db.execute('SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name').fetchall()
+    valid_brand_ids = {b['id'] for b in brands}
+
     branches = db.execute(
-        '''SELECT b.id, b.name, br.name as brand_name
+        '''SELECT b.id, b.name, b.brand_id, br.name as brand_name
            FROM branches b
            LEFT JOIN brands br ON br.id = b.brand_id
            ORDER BY br.name NULLS LAST, b.name'''
     ).fetchall()
+    valid_branch_ids = {b['id'] for b in branches}
+
+    filter_brands = []
+    for raw in request.args.getlist('brand_id'):
+        try:
+            bid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if bid in valid_brand_ids and bid not in filter_brands:
+            filter_brands.append(bid)
+
+    filter_branches = []
+    for raw in request.args.getlist('branch_id'):
+        try:
+            bid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if bid in valid_branch_ids and bid not in filter_branches:
+            filter_branches.append(bid)
+
+    branch_order = {b['id']: i for i, b in enumerate(branches)}
+    filter_branches.sort(key=lambda i: branch_order.get(i, 0))
+
+    brand_order = {b['id']: i for i, b in enumerate(brands)}
+    filter_brands.sort(key=lambda i: brand_order.get(i, 9999))
 
     query = '''
         SELECT cs.id, cs.submission_date, cs.submitted_at,
@@ -635,13 +660,15 @@ def all_submissions():
         query += ' AND u.full_name LIKE ?'
         params.append(f'%{filter_search}%')
 
-    if filter_brand:
-        query += ' AND b.brand_id = ?'
-        params.append(filter_brand)
+    if filter_brands:
+        ph = ','.join('?' * len(filter_brands))
+        query += f' AND b.brand_id IN ({ph})'
+        params.extend(filter_brands)
 
-    if filter_branch:
-        query += ' AND cs.branch_id = ?'
-        params.append(filter_branch)
+    if filter_branches:
+        ph = ','.join('?' * len(filter_branches))
+        query += f' AND cs.branch_id IN ({ph})'
+        params.extend(filter_branches)
 
     query += ' GROUP BY cs.id ORDER BY br.name NULLS LAST, b.name'
 
@@ -652,8 +679,8 @@ def all_submissions():
         submissions=submissions,
         brands=brands,
         branches=branches,
-        filter_brand=filter_brand,
-        filter_branch=filter_branch,
+        filter_brands=filter_brands,
+        filter_branches=filter_branches,
         filter_date=filter_date,
     )
 
