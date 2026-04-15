@@ -65,7 +65,7 @@ def create_app():
 
     @app.context_processor
     def inject_sidebar_submission_flags():
-        """Sidebar: branch manager daily flags; QC/IT admin unscored checklist count;
+        """Sidebar: branch manager daily flags; QC/IT/management unscored checklist count;
         QC/IT/management unread daily report count."""
         flags = {
             'sidebar_checklist_pending_today': False,
@@ -77,7 +77,7 @@ def create_app():
         if not current_user.is_authenticated:
             return flags
 
-        if current_user.role in ('qc_admin', 'it_admin'):
+        if current_user.role in ('qc_admin', 'it_admin', 'management'):
             from app.db import get_db
             db = get_db()
             pending = db.execute(

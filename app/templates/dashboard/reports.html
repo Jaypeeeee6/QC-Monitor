@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% set reports_page_label = 'Quality Metrics' if current_user.role == 'qc_admin' else 'Reports' %}
+{% set reports_page_label = 'Quality Metrics' %}
 {% block title %}{{ reports_page_label }} — QC Monitor{% endblock %}
 
 {% block content %}

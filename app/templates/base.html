@@ -75,7 +75,7 @@
             </a>
             <a href="{{ url_for('dashboard.reports') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'dashboard.reports' }}">
-                <i class="bi bi-bar-chart-line"></i> Reports
+                <i class="bi bi-bar-chart-line"></i> Quality Metrics
             </a>
 
         {% elif current_user.role == 'branch_manager' %}
@@ -138,6 +138,13 @@
                class="sidebar-item {{ 'active' if request.endpoint == 'dashboard.index' }}">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            <a href="{{ url_for('checklist.all_submissions') }}"
+               class="sidebar-item {{ 'active' if request.endpoint == 'checklist.all_submissions' }}">
+                <i class="bi bi-list-check"></i> Submitted Checklists
+                {% if sidebar_score_pending_count > 0 %}
+                <span class="sidebar-item-badge" title="Checklists awaiting a QC score">{{ sidebar_score_pending_count }}</span>
+                {% endif %}
+            </a>
             <a href="{{ url_for('reports.inbox') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('reports.inbox', 'reports.view') }}">
                 <i class="bi bi-envelope"></i> Daily Reports
@@ -147,7 +154,7 @@
             </a>
             <a href="{{ url_for('dashboard.reports') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'dashboard.reports' }}">
-                <i class="bi bi-bar-chart-line"></i> Reports
+                <i class="bi bi-bar-chart-line"></i> Quality Metrics
             </a>
         {% endif %}
 
