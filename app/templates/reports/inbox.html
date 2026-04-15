@@ -26,6 +26,9 @@
                    placeholder="Search subject, sender, or keywords…"
                    autocomplete="off">
         </div>
+        <div class="filter-group">
+            <input type="date" name="date" value="{{ filter_date }}">
+        </div>
         <div class="filter-group filter-group-branches">
             <div class="branch-filter-dropdown" id="reportsBrandDropdown">
                 <button type="button" class="branch-filter-dropdown-toggle" id="reportsBrandToggle"
@@ -73,11 +76,9 @@
                 </div>
             </div>
         </div>
-        {% if filter_brands or filter_branches or search %}
         <div class="filter-group">
             <a href="{{ url_for('reports.inbox', report_id=selected_report_id) }}" class="btn btn-outline-secondary btn-sm">Reset</a>
         </div>
-        {% endif %}
     </div>
 </form>
 
@@ -116,7 +117,7 @@
             {% if reports %}
                 {% for report in reports %}
                 <a class="email-list-item {{ 'unread' if not report.is_read }} {{ 'active' if selected_report_id == report.id }}"
-                   href="{{ url_for('reports.inbox', report_id=report.id, brand_id=filter_brands, branch_id=filter_branches, q=search) }}">
+                   href="{{ url_for('reports.inbox', report_id=report.id, date=filter_date, brand_id=filter_brands, branch_id=filter_branches, q=search) }}">
                     <div class="email-list-meta">
                         <div class="d-flex align-items-center gap-2">
                             <div class="email-avatar">{{ report.sender_name[0] | upper }}</div>
@@ -685,6 +686,16 @@
 
     wireBrandDropdown();
     wireBranchDropdown();
+
+    form.addEventListener('change', function(e) {
+        var t = e.target;
+        if (!t) return;
+        if (t.name === 'date') {
+            clearTimeout(filterFetchTimer);
+            filterFetchTimer = null;
+            runFilterFetch();
+        }
+    });
 
     var searchInput = form.querySelector('input[name="q"]');
     if (searchInput) {

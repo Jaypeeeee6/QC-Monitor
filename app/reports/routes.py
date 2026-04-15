@@ -69,6 +69,7 @@ def inbox():
                                today=today, today_report=today_report)
 
     elif current_user.role in ('qc_admin', 'it_admin', 'management'):
+        filter_date = request.args.get('date', '', type=str).strip()
         brands = db.execute(
             'SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name'
         ).fetchall()
@@ -125,6 +126,10 @@ def inbox():
             query += ' AND (dr.subject LIKE ? OR dr.body LIKE ? OR u.full_name LIKE ?)'
             like = f'%{search}%'
             params.extend([like, like, like])
+
+        if filter_date:
+            query += ' AND dr.report_date = ?'
+            params.append(filter_date)
 
         query += ' ORDER BY dr.created_at DESC'
         reports = db.execute(query, params).fetchall()
@@ -196,6 +201,7 @@ def inbox():
                                filter_brands=filter_brands,
                                filter_branches=filter_branches,
                                search=search,
+                               filter_date=filter_date,
                                selected_report=selected_report,
                                selected_report_id=selected_report_id,
                                attachments=attachments,
