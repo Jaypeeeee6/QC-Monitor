@@ -58,6 +58,9 @@
             <a href="{{ url_for('checklist.all_submissions') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'checklist.all_submissions' }}">
                 <i class="bi bi-list-check"></i> Submitted Checklists
+                {% if sidebar_score_pending_count > 0 %}
+                <span class="sidebar-item-badge" title="Checklists awaiting a QC score">{{ sidebar_score_pending_count }}</span>
+                {% endif %}
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.checklist_template_create', 'admin.checklist_template_edit', 'admin.delete_checklist_template', 'admin.toggle_checklist_template_active', 'checklist.manage_items', 'checklist.create_item', 'checklist.section_from_library') }}">
@@ -103,6 +106,9 @@
             <a href="{{ url_for('checklist.all_submissions') }}"
                class="sidebar-item {{ 'active' if request.endpoint == 'checklist.all_submissions' }}">
                 <i class="bi bi-list-check"></i> Submitted Checklists
+                {% if sidebar_score_pending_count > 0 %}
+                <span class="sidebar-item-badge" title="Checklists awaiting a QC score">{{ sidebar_score_pending_count }}</span>
+                {% endif %}
             </a>
             <a href="{{ url_for('admin.checklist_templates') }}"
                class="sidebar-item {{ 'active' if request.endpoint in ('admin.checklist_templates', 'admin.checklist_template_create', 'admin.checklist_template_edit', 'admin.delete_checklist_template', 'admin.toggle_checklist_template_active', 'checklist.manage_items', 'checklist.create_item', 'checklist.section_from_library') }}">

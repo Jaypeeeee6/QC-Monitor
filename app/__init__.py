@@ -65,13 +65,28 @@ def create_app():
 
     @app.context_processor
     def inject_sidebar_submission_flags():
-        """Expose branch manager daily submission status for sidebar warnings."""
+        """Sidebar: branch manager daily flags; QC/IT admin unscored checklist count."""
         flags = {
             'sidebar_checklist_pending_today': False,
             'sidebar_report_pending_today': False,
+            'sidebar_score_pending_count': 0,
         }
 
-        if not current_user.is_authenticated or current_user.role != 'branch_manager':
+        if not current_user.is_authenticated:
+            return flags
+
+        if current_user.role in ('qc_admin', 'it_admin'):
+            from app.db import get_db
+            db = get_db()
+            pending = db.execute(
+                '''SELECT COUNT(*)
+                   FROM checklist_submissions cs
+                   LEFT JOIN scores s ON s.submission_id = cs.id
+                   WHERE s.id IS NULL'''
+            ).fetchone()[0]
+            flags['sidebar_score_pending_count'] = int(pending or 0)
+
+        if current_user.role != 'branch_manager':
             return flags
 
         from app.checklist.effective import list_branch_manager_templates

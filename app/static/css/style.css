@@ -195,6 +195,25 @@ body {
     font-weight: 600;
 }
 
+.sidebar-item-badge {
+    margin-left: auto;
+    min-width: 1.35rem;
+    padding: 0.1rem 0.42rem;
+    border-radius: 999px;
+    background: var(--gold);
+    color: var(--dark-bg);
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.25;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.sidebar-item.active .sidebar-item-badge {
+    background: var(--dark-bg);
+    color: var(--gold);
+}
+
 .sidebar-divider {
     height: 1px;
     background: rgba(217, 189, 125, 0.1);
