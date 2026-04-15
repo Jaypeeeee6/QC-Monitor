@@ -684,6 +684,151 @@ body {
     box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
 }
 
+/* Branch checkbox dropdown (Quality Metrics / reports filter) */
+.branch-filter-dropdown {
+    position: relative;
+    min-width: 220px;
+    max-width: 280px;
+}
+
+.branch-filter-dropdown-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    border: 1.5px solid var(--card-border);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    background: #fff;
+    outline: none;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    min-height: 2.45rem;
+}
+
+.branch-filter-dropdown-toggle:hover {
+    border-color: #c9d0da;
+}
+
+.branch-filter-dropdown-toggle:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(217, 189, 125, 0.2);
+}
+
+.branch-filter-dropdown-summary {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.branch-filter-chevron {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    opacity: 0.75;
+    transition: transform 0.2s ease;
+}
+
+.branch-filter-dropdown.is-open .branch-filter-chevron {
+    transform: rotate(180deg);
+}
+
+.branch-filter-dropdown-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 40;
+    background: #fff;
+    border: 1.5px solid var(--card-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    max-height: min(320px, 55vh);
+    overflow-y: auto;
+    padding: 0.25rem 0;
+}
+
+.branch-filter-brand-option {
+    display: grid;
+    grid-template-columns: 1.125rem 1fr;
+    column-gap: 0.55rem;
+    align-items: center;
+    padding: 0.45rem 0.75rem 0.35rem;
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--gold-deeper);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: #f4f5f8;
+    border-bottom: 1px solid #e8eaef;
+}
+
+.branch-filter-brand-option:not(:first-child) {
+    margin-top: 0.2rem;
+}
+
+.branch-filter-brand-option:hover {
+    background: #eceef3;
+}
+
+.branch-filter-brand-option span {
+    min-width: 0;
+    line-height: 1.25;
+    align-self: center;
+}
+
+.branch-filter-option {
+    display: grid;
+    grid-template-columns: 1.125rem 1fr;
+    column-gap: 0.55rem;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-dark);
+    transition: background 0.12s;
+    line-height: 1.25;
+}
+
+.branch-filter-option:hover {
+    background: rgba(217, 189, 125, 0.12);
+}
+
+.filter-bar .filter-group .branch-filter-option input[type="checkbox"],
+.filter-bar .filter-group .branch-filter-brand-option input[type="checkbox"] {
+    width: 1.125rem;
+    height: 1.125rem;
+    min-width: 1.125rem;
+    max-width: 1.125rem;
+    min-height: 1.125rem;
+    max-height: 1.125rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    box-shadow: none;
+    accent-color: var(--gold);
+    cursor: pointer;
+    align-self: center;
+    justify-self: center;
+    vertical-align: middle;
+}
+
+.branch-filter-option span {
+    min-width: 0;
+    line-height: 1.25;
+    align-self: center;
+}
+
 /* Search input with icon */
 .filter-search-wrap {
     position: relative;

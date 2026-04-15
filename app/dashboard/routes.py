@@ -134,15 +134,27 @@ def reports():
 
     today = local_today()
 
-    filter_branch = request.args.get('branch_id', '')
     filter_day = request.args.get('date', today)
 
     branches = db.execute(
-        '''SELECT b.id, b.name, br.name as brand_name
+        '''SELECT b.id, b.name, b.brand_id, br.name as brand_name
            FROM branches b
            LEFT JOIN brands br ON br.id = b.brand_id
            ORDER BY br.name NULLS LAST, b.name'''
     ).fetchall()
+
+    valid_branch_ids = {b['id'] for b in branches}
+    filter_branches = []
+    for raw in request.args.getlist('branch_id'):
+        try:
+            bid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if bid in valid_branch_ids and bid not in filter_branches:
+            filter_branches.append(bid)
+
+    branch_order = {b['id']: i for i, b in enumerate(branches)}
+    filter_branches.sort(key=lambda bid: branch_order.get(bid, 0))
 
     query = '''
         SELECT cs.id, cs.submission_date, cs.submitted_at,
@@ -163,9 +175,10 @@ def reports():
     '''
     params = [filter_day]
 
-    if filter_branch:
-        query += ' AND cs.branch_id = ?'
-        params.append(filter_branch)
+    if filter_branches:
+        placeholders = ','.join('?' * len(filter_branches))
+        query += f' AND cs.branch_id IN ({placeholders})'
+        params.extend(filter_branches)
 
     query += ' GROUP BY cs.id ORDER BY cs.submission_date DESC, b.name'
 
@@ -185,9 +198,10 @@ def reports():
         WHERE cs.submission_date = ?
     '''
     daily_branch_params = [filter_day]
-    if filter_branch:
-        daily_branch_query += ' AND cs.branch_id = ?'
-        daily_branch_params.append(filter_branch)
+    if filter_branches:
+        ph = ','.join('?' * len(filter_branches))
+        daily_branch_query += f' AND cs.branch_id IN ({ph})'
+        daily_branch_params.extend(filter_branches)
     daily_branch_query += '''
         GROUP BY b.id, b.name
         ORDER BY avg_score DESC, b.name
@@ -212,9 +226,10 @@ def reports():
         LEFT JOIN scores s ON s.submission_id = cs.id
     '''
     all_time_branch_params = []
-    if filter_branch:
-        all_time_branch_query += ' WHERE b.id = ?'
-        all_time_branch_params.append(filter_branch)
+    if filter_branches:
+        ph = ','.join('?' * len(filter_branches))
+        all_time_branch_query += f' WHERE b.id IN ({ph})'
+        all_time_branch_params.extend(filter_branches)
     all_time_branch_query += '''
         GROUP BY b.id, b.name
         HAVING COUNT(s.id) > 0
@@ -234,7 +249,7 @@ def reports():
         'dashboard/reports.html',
         submissions=submissions,
         branches=branches,
-        filter_branch=filter_branch,
+        filter_branches=filter_branches,
         filter_day=filter_day,
         avg_score=avg_score,
         total_submissions=len(submissions),

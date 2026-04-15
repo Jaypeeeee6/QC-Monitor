@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}Reports — QC Monitor{% endblock %}
+{% set reports_page_label = 'Quality Metrics' if current_user.role == 'qc_admin' else 'Reports' %}
+{% block title %}{{ reports_page_label }} — QC Monitor{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1><i class="bi bi-bar-chart-line me-2" style="color:var(--gold);"></i>Reports</h1>
+        <h1><i class="bi bi-bar-chart-line me-2" style="color:var(--gold);"></i>{{ reports_page_label }}</h1>
         <p class="subtitle">
             {{ total_submissions }} submission{{ 's' if total_submissions != 1 }} on {{ filter_day }}
             {% if avg_score is not none %} &mdash; Avg QC Score: <strong>{{ avg_score }}/100</strong>{% endif %}
@@ -19,17 +20,34 @@
             <label>Day</label>
             <input type="date" name="date" value="{{ filter_day }}">
         </div>
-        <div class="filter-group">
-            <label>Branch</label>
-            <select name="branch_id">
-                <option value="">All Branches</option>
-                {% for b in branches %}
-                {% if loop.changed(b.brand_name) %}
-                <optgroup label="{{ b.brand_name or 'No Brand' }}"></optgroup>
-                {% endif %}
-                <option value="{{ b.id }}" {{ 'selected' if filter_branch == b.id|string }}>{{ b.name }}</option>
-                {% endfor %}
-            </select>
+        <div class="filter-group filter-group-branches">
+            <label id="branchFilterLabel">Branches</label>
+            <div class="branch-filter-dropdown" id="branchFilterDropdown">
+                <button type="button" class="branch-filter-dropdown-toggle" id="branchFilterToggle"
+                        aria-expanded="false" aria-controls="branchFilterPanel"
+                        aria-labelledby="branchFilterLabel">
+                    <span class="branch-filter-dropdown-summary" id="branchFilterSummary">All branches</span>
+                    <i class="bi bi-chevron-down branch-filter-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="branch-filter-dropdown-panel" id="branchFilterPanel" role="group" hidden>
+                    {% for b in branches %}
+                    {% set brand_key = 'b' ~ b.brand_id if b.brand_id is not none else 'none' %}
+                    {% if loop.changed(b.brand_name) %}
+                    <label class="branch-filter-brand-option">
+                        <input type="checkbox" class="branch-filter-brand-cb" autocomplete="off"
+                               data-brand-key="{{ brand_key }}"
+                               aria-label="Select all branches for {{ (b.brand_name or 'No Brand')|e }}">
+                        <span>{{ b.brand_name or 'No Brand' }}</span>
+                    </label>
+                    {% endif %}
+                    <label class="branch-filter-option" data-brand-key="{{ brand_key }}">
+                        <input type="checkbox" name="branch_id" value="{{ b.id }}"
+                               {% if b.id in filter_branches %}checked{% endif %}>
+                        <span>{{ b.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
         <div class="filter-group">
             <a href="{{ url_for('dashboard.reports') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
@@ -109,6 +127,98 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function() {
+    var root = document.getElementById('branchFilterDropdown');
+    if (!root) return;
+    var toggle = document.getElementById('branchFilterToggle');
+    var panel = document.getElementById('branchFilterPanel');
+    var summary = document.getElementById('branchFilterSummary');
+    function updateSummary() {
+        var checked = panel.querySelectorAll('input[name="branch_id"]:checked');
+        if (checked.length === 0) {
+            summary.textContent = 'All branches';
+            return;
+        }
+        if (checked.length === 1) {
+            var lbl = checked[0].closest('label');
+            summary.textContent = lbl ? lbl.querySelector('span').textContent.trim() : '1 branch';
+            return;
+        }
+        summary.textContent = checked.length + ' branches';
+    }
+    function setOpen(open) {
+        root.classList.toggle('is-open', open);
+        panel.hidden = !open;
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function isOpen() {
+        return root.classList.contains('is-open');
+    }
+    toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setOpen(!isOpen());
+    });
+    panel.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    function branchBoxesForBrand(key) {
+        return panel.querySelectorAll(
+            '.branch-filter-option[data-brand-key="' + key + '"] input[name="branch_id"]'
+        );
+    }
+    function brandMasterCheckbox(key) {
+        return panel.querySelector('.branch-filter-brand-cb[data-brand-key="' + key + '"]');
+    }
+    function syncBrandCheckbox(key) {
+        var brandCb = brandMasterCheckbox(key);
+        if (!brandCb) return;
+        var boxes = branchBoxesForBrand(key);
+        var n = boxes.length;
+        if (!n) return;
+        var c = 0;
+        for (var i = 0; i < boxes.length; i++) {
+            if (boxes[i].checked) c++;
+        }
+        brandCb.indeterminate = c > 0 && c < n;
+        brandCb.checked = c === n;
+    }
+    function syncAllBrandCheckboxes() {
+        panel.querySelectorAll('.branch-filter-brand-cb').forEach(function(cb) {
+            syncBrandCheckbox(cb.getAttribute('data-brand-key'));
+        });
+    }
+    panel.addEventListener('change', function(e) {
+        var t = e.target;
+        if (t.classList && t.classList.contains('branch-filter-brand-cb')) {
+            var key = t.getAttribute('data-brand-key');
+            var want = t.checked;
+            branchBoxesForBrand(key).forEach(function(cb) {
+                cb.checked = want;
+            });
+            t.indeterminate = false;
+            updateSummary();
+            return;
+        }
+        if (t.name === 'branch_id') {
+            var row = t.closest('.branch-filter-option');
+            if (row) syncBrandCheckbox(row.getAttribute('data-brand-key'));
+            updateSummary();
+        }
+    });
+    document.addEventListener('click', function() {
+        if (isOpen()) setOpen(false);
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isOpen()) {
+            setOpen(false);
+            toggle.focus();
+        }
+    });
+    syncAllBrandCheckboxes();
+    updateSummary();
+})();
+</script>
 {% if daily_branch_score_data or all_time_branch_score_data %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
